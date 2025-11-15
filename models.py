@@ -141,3 +141,22 @@ class TeacherFeedback(BaseModel):
     user_answer: float
     feedback: str
     explanation: str
+
+
+class MistakeReview(BaseModel):
+    """Mistake review record"""
+    mistake_id: int
+    username: str
+    question: str
+    equation: str
+    user_answer: float
+    correct_answer: float
+    category: str
+    timestamp: datetime
+    reviewed: bool
+
+
+class MistakeReviewRequest(BaseModel):
+    """Request to mark a mistake as reviewed"""
+    username: str
+    mistake_id: int

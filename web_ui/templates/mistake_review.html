@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Mistake Review - GradeSchoolMathSolver-RAG{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto;">
+    <h2 style="color: #667eea; margin-bottom: 20px;">📝 Review Your Mistakes</h2>
+    
+    <div class="form-group">
+        <label for="username">Enter Your Username:</label>
+        <input type="text" id="username" placeholder="Your username">
+    </div>
+    
+    <button class="button" onclick="loadNextMistake()" style="width: 100%; padding: 15px; font-size: 18px;">
+        Start Reviewing
+    </button>
+    
+    <div id="mistake-info" style="margin-top: 20px; display: none;">
+        <div style="background: #f5f5f5; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+            <h3 style="color: #667eea; margin-bottom: 15px;">Unreviewed Mistakes</h3>
+            <p style="font-size: 24px; color: #764ba2; font-weight: bold;" id="mistake-count">0</p>
+        </div>
+    </div>
+    
+    <div id="mistake-card" style="display: none;">
+        <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 10px; padding: 25px; margin-top: 20px;">
+            <h3 style="color: #856404; margin-bottom: 20px;">Question from Your Past</h3>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="color: #856404; font-weight: bold;">Question:</label>
+                <p style="font-size: 18px; color: #333; margin-top: 5px;" id="question-text"></p>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="color: #856404; font-weight: bold;">Equation:</label>
+                <p style="font-size: 18px; color: #333; margin-top: 5px;" id="equation-text"></p>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="color: #d9534f; font-weight: bold;">Your Previous Answer (Incorrect):</label>
+                <p style="font-size: 20px; color: #d9534f; margin-top: 5px; font-weight: bold;" id="user-answer"></p>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="color: #5cb85c; font-weight: bold;">Correct Answer:</label>
+                <p style="font-size: 20px; color: #5cb85c; margin-top: 5px; font-weight: bold;" id="correct-answer"></p>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="color: #856404; font-weight: bold;">Category:</label>
+                <p style="font-size: 16px; color: #333; margin-top: 5px;" id="category"></p>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="color: #856404; font-weight: bold;">Date:</label>
+                <p style="font-size: 16px; color: #333; margin-top: 5px;" id="timestamp"></p>
+            </div>
+            
+            <div style="margin-top: 30px;">
+                <label for="retry-answer" style="color: #667eea; font-weight: bold; font-size: 18px;">Try Again:</label>
+                <input type="number" id="retry-answer" placeholder="Enter your answer" style="margin-top: 10px; font-size: 18px;">
+            </div>
+            
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button class="button" onclick="checkAnswer()" style="flex: 1; padding: 15px; font-size: 16px;">
+                    ✓ Check Answer
+                </button>
+                <button class="button" onclick="markReviewedAndNext()" style="flex: 1; padding: 15px; font-size: 16px; background: #5cb85c;">
+                    → Next Mistake
+                </button>
+            </div>
+        </div>
+        
+        <div id="answer-feedback" style="display: none; margin-top: 20px; padding: 20px; border-radius: 10px;"></div>
+    </div>
+    
+    <div id="no-mistakes" style="display: none;">
+        <div style="background: #d4edda; border: 2px solid #28a745; border-radius: 10px; padding: 30px; margin-top: 20px; text-align: center;">
+            <h3 style="color: #155724; margin-bottom: 15px;">🎉 Great Job!</h3>
+            <p style="font-size: 18px; color: #155724;">You have no mistakes to review at this time.</p>
+            <p style="font-size: 16px; color: #155724; margin-top: 10px;">Keep practicing to improve your skills!</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentMistake = null;
+    let currentUsername = null;
+
+    async function loadNextMistake() {
+        const username = document.getElementById('username').value.trim();
+        if (!username) {
+            alert('Please enter your username');
+            return;
+        }
+        
+        currentUsername = username;
+        
+        try {
+            // Get mistake count
+            const countResponse = await fetch(`/api/mistakes/count/${username}`);
+            const countData = await countResponse.json();
+            
+            document.getElementById('mistake-count').textContent = countData.unreviewed_count;
+            document.getElementById('mistake-info').style.display = 'block';
+            
+            // Get next mistake
+            const response = await fetch(`/api/mistakes/next/${username}`);
+            
+            if (response.status === 404) {
+                document.getElementById('mistake-card').style.display = 'none';
+                document.getElementById('no-mistakes').style.display = 'block';
+                return;
+            }
+            
+            const data = await response.json();
+            currentMistake = data;
+            
+            // Display mistake
+            document.getElementById('question-text').textContent = data.question;
+            document.getElementById('equation-text').textContent = data.equation;
+            document.getElementById('user-answer').textContent = data.user_answer;
+            document.getElementById('correct-answer').textContent = data.correct_answer;
+            document.getElementById('category').textContent = data.category;
+            document.getElementById('timestamp').textContent = new Date(data.timestamp).toLocaleString();
+            
+            document.getElementById('retry-answer').value = '';
+            document.getElementById('answer-feedback').style.display = 'none';
+            document.getElementById('mistake-card').style.display = 'block';
+            document.getElementById('no-mistakes').style.display = 'none';
+            
+        } catch (error) {
+            alert('Error loading mistake: ' + error.message);
+        }
+    }
+
+    function checkAnswer() {
+        const retryAnswer = parseFloat(document.getElementById('retry-answer').value);
+        const feedbackDiv = document.getElementById('answer-feedback');
+        
+        if (isNaN(retryAnswer)) {
+            alert('Please enter a valid number');
+            return;
+        }
+        
+        const isCorrect = Math.abs(retryAnswer - currentMistake.correct_answer) < 0.01;
+        
+        if (isCorrect) {
+            feedbackDiv.style.background = '#d4edda';
+            feedbackDiv.style.border = '2px solid #28a745';
+            feedbackDiv.style.color = '#155724';
+            feedbackDiv.innerHTML = '<h3>✅ Correct!</h3><p>Great job! You got it right this time.</p>';
+        } else {
+            feedbackDiv.style.background = '#f8d7da';
+            feedbackDiv.style.border = '2px solid #dc3545';
+            feedbackDiv.style.color = '#721c24';
+            feedbackDiv.innerHTML = '<h3>❌ Not quite right</h3><p>The correct answer is ' + currentMistake.correct_answer + '. Keep trying!</p>';
+        }
+        
+        feedbackDiv.style.display = 'block';
+    }
+
+    async function markReviewedAndNext() {
+        if (!currentMistake) {
+            alert('No mistake loaded');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/mistakes/review', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: currentUsername,
+                    mistake_id: currentMistake.mistake_id
+                })
+            });
+            
+            if (response.ok) {
+                // Load next mistake
+                await loadNextMistake();
+            } else {
+                alert('Error marking mistake as reviewed');
+            }
+            
+        } catch (error) {
+            alert('Error: ' + error.message);
+        }
+    }
+</script>
+{% endblock %}
