@@ -36,6 +36,7 @@ class AnswerHistory(Base):
     is_correct = Column(Boolean, nullable=False)
     category = Column(String(50), nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
+    reviewed = Column(Boolean, default=False, nullable=False)
 
 
 class AccountService:

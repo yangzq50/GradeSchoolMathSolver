@@ -13,6 +13,7 @@ from services.account import AccountService
 from services.exam import ExamService
 from services.agent_management import AgentManagementService
 from services.immersive_exam import ImmersiveExamService
+from services.mistake_review import MistakeReviewService
 
 
 app = Flask(__name__, template_folder='templates')
@@ -23,6 +24,7 @@ account_service = AccountService()
 exam_service = ExamService()
 agent_management = AgentManagementService()
 immersive_exam_service = ImmersiveExamService()
+mistake_review_service = MistakeReviewService()
 
 # Create default agents on startup
 agent_management.create_default_agents()
@@ -88,6 +90,12 @@ def agents_page():
             agents.append(agent_config)
     
     return render_template('agents.html', agents=agents)
+
+
+@app.route('/mistakes')
+def mistake_review_page():
+    """Mistake review page"""
+    return render_template('mistake_review.html')
 
 
 @app.route('/immersive')
@@ -441,6 +449,70 @@ def api_list_immersive_exams():
                 })
         
         return jsonify(exams), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+
+# Mistake Review API Routes
+
+@app.route('/api/mistakes/next/<username>', methods=['GET'])
+def api_get_next_mistake(username):
+    """API: Get the next mistake to review for a user"""
+    try:
+        mistake = mistake_review_service.get_next_mistake(username)
+        
+        if mistake:
+            return jsonify(mistake.model_dump())
+        else:
+            return jsonify({'message': 'No mistakes to review'}), 404
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+
+@app.route('/api/mistakes/count/<username>', methods=['GET'])
+def api_get_mistake_count(username):
+    """API: Get count of unreviewed mistakes for a user"""
+    try:
+        count = mistake_review_service.get_unreviewed_count(username)
+        return jsonify({'username': username, 'unreviewed_count': count})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+
+@app.route('/api/mistakes/review', methods=['POST'])
+def api_mark_mistake_reviewed():
+    """API: Mark a mistake as reviewed"""
+    data = request.json
+    
+    try:
+        username = data.get('username')
+        mistake_id = data.get('mistake_id')
+        
+        if not username or mistake_id is None:
+            return jsonify({'error': 'username and mistake_id are required'}), 400
+        
+        success = mistake_review_service.mark_as_reviewed(username, mistake_id)
+        
+        if success:
+            return jsonify({'message': 'Mistake marked as reviewed', 'success': True})
+        else:
+            return jsonify({'error': 'Failed to mark mistake as reviewed'}), 400
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+
+@app.route('/api/mistakes/all/<username>', methods=['GET'])
+def api_get_all_mistakes(username):
+    """API: Get all unreviewed mistakes for a user"""
+    try:
+        limit = request.args.get('limit', 100, type=int)
+        mistakes = mistake_review_service.get_all_unreviewed_mistakes(username, limit=limit)
+        
+        return jsonify([m.model_dump() for m in mistakes])
         
     except Exception as e:
         return jsonify({'error': str(e)}), 400
