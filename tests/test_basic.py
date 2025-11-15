@@ -52,11 +52,12 @@ def test_classification():
 def test_account_service():
     """Test account service"""
     from services.account import AccountService
+    import random
     
     service = AccountService()
     
-    # Create test user
-    username = "test_user_pytest"
+    # Create test user with unique name
+    username = f"test_user_pytest_{random.randint(1000, 9999)}"
     service.create_user(username)
     
     # Record answers
