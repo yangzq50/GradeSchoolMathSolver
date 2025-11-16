@@ -31,7 +31,7 @@
   ✅ Service 4: Quiz History Service - Fully Implemented
   ✅ Service 5: Exam Service - Fully Implemented
   ✅ Service 6: Web UI Service - Fully Implemented
-  ✅ Service 7: AI Agent Service - Fully Implemented
+  ✅ Service 7: RAG Bot Service - Fully Implemented
   ✅ Service 8: Agent Management Service - Fully Implemented
 
   Overall Completion: 100% ✅
@@ -74,7 +74,7 @@
   │   ├── account/               # Service 3: User Management
   │   ├── quiz_history/          # Service 4: RAG History
   │   ├── exam/                  # Service 5: Exam Coordination
-  │   ├── agent/                 # Service 7: AI Agent
+  │   ├── agent/                 # Service 7: RAG Bot
   │   └── agent_management/      # Service 8: Agent Management
   │
   ├── web_ui/                     # Service 6: Web Interface
@@ -118,7 +118,7 @@
     ✅ Recent 100 score tracking
     ✅ Overall correctness percentage
     
-  AI Agents:
+  RAG Bots:
     ✅ 4 default agent configurations
     ✅ Configurable classification
     ✅ Configurable RAG
@@ -247,7 +247,7 @@
     ✅ Store quiz history for RAG
     ✅ Retrieve similar past questions
     ✅ Run exams for humans
-    ✅ Run exams for AI agents
+    ✅ Run exams for RAG bots
     ✅ Test different agent strategies
     ✅ Compare agent performance
     ✅ View user progress trends

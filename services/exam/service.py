@@ -156,7 +156,7 @@ class ExamService:
 
     def conduct_agent_exam(self, request: ExamRequest) -> Dict[str, Any]:
         """
-        Conduct exam for an AI agent
+        Conduct exam for a RAG bot
 
         Args:
             request: ExamRequest with agent_name specified

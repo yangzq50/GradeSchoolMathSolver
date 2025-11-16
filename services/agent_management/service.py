@@ -1,6 +1,6 @@
 """
 Agent Management Service
-Manages AI agent configurations and tracks their performance
+Manages RAG bot configurations and tracks their performance
 """
 import json
 import os
@@ -9,7 +9,7 @@ from models import AgentConfig
 
 
 class AgentManagementService:
-    """Service for managing AI agents"""
+    """Service for managing RAG bots"""
 
     def __init__(self, config_dir: str = "data/agents"):
         self.config_dir = config_dir

@@ -155,7 +155,7 @@ python web_ui/app.py
 - Answer the questions
 - View your results!
 
-### 3. Test an AI Agent
+### 3. Test a RAG Bot
 - Go to "Agents" page
 - Select "basic_agent"
 - Click "Test Agent"
@@ -272,7 +272,7 @@ FLASK_PORT=8080  # Change from 5000
 
 Now that you're set up, explore:
 
-1. **Create custom agents** - Configure your own AI agent strategies
+1. **Create custom agents** - Configure your own RAG bot strategies
 2. **Track progress** - Monitor user improvements over time
 3. **Compare agents** - See which strategies work best
 4. **Experiment** - Try different question types and difficulty levels
