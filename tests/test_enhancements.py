@@ -93,11 +93,8 @@ def test_question_generation():
     for difficulty in ['easy', 'medium', 'hard']:
         question = service.generate_question(difficulty)
 
-        # Verify answer is stored as float but is actually an integer value
-        assert isinstance(question.answer, float), "Answer should be stored as float"
-        assert question.answer == int(question.answer), (
-            f"Question answer should be integer: {question.equation} = {question.answer}"
-        )
+        # Verify answer is stored as integer value
+        assert isinstance(question.answer, int), "Answer should be stored as int"
 
 
 def test_format_number_utility():

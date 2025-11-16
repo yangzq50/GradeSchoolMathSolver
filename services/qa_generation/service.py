@@ -43,7 +43,7 @@ class QAGenerationService:
         self.max_retries = max_retries
         self.timeout = timeout
 
-    def generate_equation(self, difficulty: str) -> Tuple[str, float]:
+    def generate_equation(self, difficulty: str) -> Tuple[str, int]:
         """
         Generate a mathematical equation based on difficulty level
 
@@ -66,7 +66,7 @@ class QAGenerationService:
         else:
             return self._generate_hard_equation()
 
-    def _generate_easy_equation(self) -> Tuple[str, float]:
+    def _generate_easy_equation(self) -> Tuple[str, int]:
         """Generate easy equations: single operation, small numbers (1-20)"""
         num1 = random.randint(1, 20)
         num2 = random.randint(1, 20)
@@ -82,9 +82,9 @@ class QAGenerationService:
             equation = f"{num1} - {num2}"
             answer = num1 - num2
 
-        return equation, float(answer)
+        return equation, answer
 
-    def _generate_medium_equation(self) -> Tuple[str, float]:
+    def _generate_medium_equation(self) -> Tuple[str, int]:
         """Generate medium equations: multiple operations, numbers (1-50)"""
         num1 = random.randint(1, 50)
         num2 = random.randint(1, 50)
@@ -102,9 +102,9 @@ class QAGenerationService:
             equation = f"{num1} * {num2} - {num3}"
             answer = num1 * num2 - num3
 
-        return equation, float(answer)
+        return equation, answer
 
-    def _generate_hard_equation(self) -> Tuple[str, float]:
+    def _generate_hard_equation(self) -> Tuple[str, int]:
         """Generate hard equations: parentheses, division, larger numbers"""
         num1 = random.randint(2, 20)
         num2 = random.randint(2, 20)
@@ -113,10 +113,9 @@ class QAGenerationService:
         equation_type = random.choice(['parentheses_div', 'complex_mult', 'multi_op'])
 
         if equation_type == 'parentheses_div':
-            # Ensure clean division - make sure numerator is divisible by denominator
+            # Ensure clean division
             # Use (num2 * num1 + num3 * num1) / num1 = num2 + num3
-            numerator = num1 * (num2 + num3)
-            equation = f"{numerator} / {num1}"
+            equation = f"{num2 * num1} + {num3 * num1} / {num1}"
             answer = num2 + num3
         elif equation_type == 'complex_mult':
             equation = f"({num1} + {num2}) * {num3}"
@@ -127,7 +126,7 @@ class QAGenerationService:
             equation = f"{num1} * ({num2} + {num3}) - {num4}"
             answer = num1 * (num2 + num3) - num4
 
-        return equation, float(answer)
+        return equation, answer
 
     def _try_ai_question_generation(self, prompt: str) -> str:
         """
@@ -169,7 +168,7 @@ class QAGenerationService:
         except (Timeout, RequestException):
             return ""
 
-    def generate_question_text(self, equation: str, answer: float) -> str:
+    def generate_question_text(self, equation: str, answer: int) -> str:
         """
         Generate natural language question from equation using AI model with retry logic
 
