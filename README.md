@@ -102,9 +102,11 @@ The system consists of 12 main components:
 ### Prerequisites
 
 - Python 3.11+
-- Docker (for Elasticsearch)
-- Docker Desktop with AI models (for LLM service via localhost:12434)
-- 8GB+ RAM recommended
+- Docker Desktop with **Docker Model Runner** enabled (for AI models and Elasticsearch)
+  - **Docker Model Runner** is Docker Desktop's built-in AI model hosting service that runs LLMs locally
+  - Provides an OpenAI-compatible API at localhost:12434
+  - See setup instructions below
+- 8GB+ RAM recommended (16GB+ recommended for larger models)
 
 ### Installation
 
@@ -128,40 +130,101 @@ The system consists of 12 main components:
    # LLM_ENGINE should be your engine (e.g., llama.cpp)
    ```
 
-4. **Set up Docker Desktop AI Models**
-   - Ensure Docker Desktop is running with AI models enabled
-   - The models should be accessible at localhost:12434 (or your configured port)
-   - Example model: `ai/llama3.2:1B-Q4_0`
+4. **Set up Docker Model Runner (Docker Desktop's AI model service)**
+   
+   Docker Model Runner is Docker Desktop's built-in feature for running AI models locally with an OpenAI-compatible API.
+   
+   **How to enable Docker Model Runner:**
+   
+   a. **Install/Update Docker Desktop**
+      - Download from https://www.docker.com/products/docker-desktop
+      - Ensure you have Docker Desktop version 4.32 or later
+   
+   b. **Enable Docker Model Runner**
+      - Open Docker Desktop
+      - Navigate to **Settings** → **Features in development**
+      - Enable **"Enable Docker AI Model Runner"** (or similar option depending on your version)
+      - Apply & Restart Docker Desktop
+   
+   c. **Download AI Models**
+      - In Docker Desktop, navigate to the **AI Models** section (or **Models** tab)
+      - Search for and pull `llama3.2:1B-Q4_0` (or your preferred model)
+      - Wait for the model to download and become ready
+   
+   d. **Verify Docker Model Runner is working**
+      ```bash
+      # Test if models API is accessible
+      curl http://localhost:12434/engines/llama.cpp/v1/models
+      
+      # Test a simple chat completion
+      curl http://localhost:12434/engines/llama.cpp/v1/chat/completions \
+        -H "Content-Type: application/json" \
+        -d '{
+          "model": "ai/llama3.2:1B-Q4_0",
+          "messages": [{"role": "user", "content": "What is 2+2?"}]
+        }'
+      ```
+   
+   The models run at **localhost:12434** and provide an OpenAI-compatible API endpoint.
+   Example model: `ai/llama3.2:1B-Q4_0`
 
-5. **Start infrastructure with Docker Compose**
+5. **Start the Application**
+
+   You have two options for running the application:
+
+   **Option 1: Using Docker Compose (Recommended)**
+   
+   This starts both Elasticsearch and the web application in containers:
+   
    ```bash
    docker-compose up -d
    ```
    
-   Note: This only starts Elasticsearch. The LLM service runs via Docker Desktop models on your localhost.
-
-6. **Run the web application**
+   The web app will be available at `http://localhost:5000`
    
-   From the project root directory, run:
+   **What this does:**
+   - Starts Elasticsearch container on port 9200
+   - Starts the web application container on port 5000
+   - Web app connects to Docker Model Runner via `host.docker.internal:12434`
+   - Data is persisted in `./data` directory
+   
+   To stop all services:
    ```bash
+   docker-compose down
+   ```
+
+   **Option 2: Elasticsearch in Docker + Web App Locally**
+   
+   If you prefer to run the web app locally (useful for development):
+   
+   a. Start only Elasticsearch:
+   ```bash
+   docker-compose up -d elasticsearch
+   ```
+   
+   b. Run the web application locally:
+   ```bash
+   # From the project root directory
    python -m web_ui.app
    ```
    
    **Note:** Make sure you run this command from the project root directory (`GradeSchoolMathSolver-RAG/`), not from inside the `web_ui/` folder.
+   
+   The web app will be available at `http://localhost:5000`
 
-7. **Open your browser**
+6. **Open your browser**
    ```
    http://localhost:5000
    ```
 
 ### Alternative: Local Setup (Without Docker)
 
-If you prefer to run everything locally:
+If you prefer to run everything locally without Docker:
 
-1. **Set up LLM service** - Use any OpenAI-compatible API endpoint
-2. **Install and run Elasticsearch**
+1. **Set up LLM service** - Use any OpenAI-compatible API endpoint (see [AI Model Service Documentation](docs/AI_MODEL_SERVICE.md))
+2. **Install and run Elasticsearch locally**
 3. **Update .env** with your LLM endpoint and Elasticsearch URLs
-4. **Run the web application**
+4. **Run the web application** with `python -m web_ui.app`
 
 ## 📖 Usage
 
@@ -511,10 +574,35 @@ If you get errors like `ModuleNotFoundError: No module named 'config'`, `'models
 
 ### AI Model Not Responding
 
-1. Check if Docker Desktop models are running and accessible
-2. Test the API: `curl http://localhost:12434/engines/llama.cpp/v1/models`
-3. Verify your AI_MODEL_URL, AI_MODEL_NAME, and LLM_ENGINE environment variables are correct
-4. Check that the model is available in Docker Desktop
+1. **Check if Docker Model Runner is running and accessible:**
+   ```bash
+   # Test models endpoint
+   curl http://localhost:12434/engines/llama.cpp/v1/models
+   
+   # Test chat completions endpoint
+   curl http://localhost:12434/engines/llama.cpp/v1/chat/completions \
+     -H "Content-Type: application/json" \
+     -d '{"model": "ai/llama3.2:1B-Q4_0", "messages": [{"role": "user", "content": "test"}]}'
+   ```
+
+2. **Verify Docker Model Runner is enabled in Docker Desktop:**
+   - Open Docker Desktop
+   - Go to Settings → Features in development
+   - Ensure "Enable Docker AI Model Runner" is checked
+   - Check that models are downloaded in the AI Models/Models section
+
+3. **Verify your environment variables are correct:**
+   ```bash
+   AI_MODEL_URL=http://localhost:12434
+   AI_MODEL_NAME=ai/llama3.2:1B-Q4_0
+   LLM_ENGINE=llama.cpp
+   ```
+
+4. **Check Docker Desktop status:**
+   - Open Docker Desktop and check if it's running
+   - Navigate to Settings → Resources
+   - Verify resource allocation (CPU/Memory) - at least 8GB RAM recommended
+   - Check the Models tab to ensure your model is downloaded and active
 
 ### Elasticsearch Connection Issues
 
@@ -542,7 +630,8 @@ For questions or support, please open an issue on GitHub.
 
 ## 🙏 Acknowledgments
 
-- Ollama for easy AI model deployment
+- Docker Model Runner for local AI model hosting
+- Ollama for alternative AI model deployment
 - LLaMA 3.2 for language generation
 - Elasticsearch for RAG capabilities
 - Flask for web framework

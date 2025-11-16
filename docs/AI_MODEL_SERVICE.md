@@ -19,25 +19,41 @@ All services in the codebase use:
 
 ## Deployment Options
 
-### Option 1: Docker Desktop AI Models (Recommended)
+### Option 1: Docker Desktop Model Runner (Recommended)
 
-This project is designed to work with Docker Desktop's built-in AI models feature.
+This project is designed to work with **Docker Model Runner**, Docker Desktop's built-in AI model hosting service.
+
+**What is Docker Model Runner?**
+- A feature of Docker Desktop that runs AI models locally with an OpenAI-compatible API
+- Models run at `localhost:12434` by default
+- Provides the same API format as OpenAI (chat completions)
+- No need for separate Ollama or other LLM infrastructure
+- Integrated directly into Docker Desktop
 
 #### Setup Steps:
 
-1. **Install Docker Desktop**
+1. **Install/Update Docker Desktop**
    - Download from https://www.docker.com/products/docker-desktop
-   - Install Docker Desktop with AI features enabled
+   - Ensure you have Docker Desktop version 4.32 or later
 
-2. **Enable AI Models in Docker Desktop**
-   - Open Docker Desktop settings
-   - Navigate to the AI section
-   - Enable AI models feature
-   - Download the desired model (e.g., LLaMA 3.2)
+2. **Enable Docker Model Runner**
+   - Open Docker Desktop
+   - Navigate to **Settings** → **Features in development**
+   - Enable **"Enable Docker AI Model Runner"** (or similar option)
+   - Click **Apply & Restart**
 
-3. **Verify Installation**
+3. **Download AI Models**
+   - In Docker Desktop, navigate to the **AI Models** or **Models** section
+   - Search for and download your desired model (e.g., `llama3.2:1B-Q4_0`)
+   - Wait for the download to complete
+   - The model becomes available immediately after download
+
+4. **Verify Installation**
    ```bash
-   # Test the OpenAI-compatible API
+   # Test the models API
+   curl http://localhost:12434/engines/llama.cpp/v1/models
+   
+   # Test the OpenAI-compatible chat completions API
    curl http://localhost:12434/engines/llama.cpp/v1/chat/completions \
      -H "Content-Type: application/json" \
      -d '{
