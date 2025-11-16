@@ -1,30 +1,45 @@
 """
 Question Classification Service
-Classifies math questions into predefined categories
+Classifies math questions into predefined categories with robust error handling
 """
 import re
 import requests
+from requests.exceptions import RequestException, Timeout
 from config import Config
 
 
 class ClassificationService:
-    """Service for classifying math questions"""
+    """
+    Service for classifying math questions
 
-    def __init__(self):
+    This service classifies mathematical equations into categories using either
+    rule-based pattern matching or AI-based classification with fallback support.
+
+    Attributes:
+        config: Configuration object
+        categories: List of valid question categories
+        timeout: API request timeout in seconds
+    """
+
+    def __init__(self, timeout: int = 30):
         self.config = Config()
         self.categories = self.config.QUESTION_CATEGORIES
+        self.timeout = timeout
 
     def classify_question(self, equation: str, use_ai: bool = False) -> str:
         """
         Classify a math question into a category
 
         Args:
-            equation: The mathematical equation
+            equation: The mathematical equation (string)
             use_ai: Whether to use AI model for classification
 
         Returns:
-            Category name
+            Category name (always returns a valid category)
         """
+        if not equation or not isinstance(equation, str):
+            return 'mixed_operations'  # Default fallback
+
         if use_ai:
             return self._classify_with_ai(equation)
         else:
@@ -74,13 +89,13 @@ class ClassificationService:
 
     def _classify_with_ai(self, equation: str) -> str:
         """
-        Classify using AI model
+        Classify using AI model with fallback to rule-based classification
 
         Args:
             equation: The mathematical equation
 
         Returns:
-            Category name
+            Category name (guaranteed to be valid)
         """
         categories_str = ", ".join(self.categories)
         prompt = f"""Classify the following math equation into ONE of these categories: {categories_str}
@@ -97,7 +112,7 @@ Respond with ONLY the category name, nothing else."""
                     "prompt": prompt,
                     "stream": False
                 },
-                timeout=30
+                timeout=self.timeout
             )
 
             if response.status_code == 200:
@@ -108,8 +123,12 @@ Respond with ONLY the category name, nothing else."""
                 if category in self.categories:
                     return category
 
+        except Timeout:
+            print("Timeout classifying with AI, falling back to rule-based")
+        except RequestException as e:
+            print(f"API error classifying with AI: {e}, falling back to rule-based")
         except Exception as e:
-            print(f"Error classifying with AI: {e}")
+            print(f"Unexpected error classifying with AI: {e}, falling back to rule-based")
 
         # Fallback to rule-based
         return self._classify_rule_based(equation)

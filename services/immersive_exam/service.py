@@ -134,6 +134,95 @@ class ImmersiveExamService:
         exam.started_at = datetime.now()
         return True
 
+    def _find_participant(self, exam: ImmersiveExam, participant_id: str) -> Optional[ImmersiveParticipant]:
+        """
+        Find a participant in the exam by ID
+
+        Args:
+            exam: ImmersiveExam object
+            participant_id: ID of the participant to find
+
+        Returns:
+            ImmersiveParticipant object or None
+        """
+        for p in exam.participants:
+            if p.participant_id == participant_id:
+                return p
+        return None
+
+    def _get_participant_answer_data(self, participant: ImmersiveParticipant,
+                                     question_index: int) -> Dict[str, Any]:
+        """
+        Get formatted answer data for a participant
+
+        Args:
+            participant: ImmersiveParticipant object
+            question_index: Index of the current question
+
+        Returns:
+            Dictionary with participant answer data
+        """
+        return {
+            'participant_id': participant.participant_id,
+            'participant_type': participant.participant_type.value,
+            'answer': participant.answers[question_index],
+            'is_correct': (
+                participant.scores[question_index]
+                if question_index < len(participant.scores)
+                else False
+            )
+        }
+
+    def _get_previous_answers_for_later_participants(
+        self, exam: ImmersiveExam, participant: ImmersiveParticipant
+    ) -> List[Dict[str, Any]]:
+        """
+        Get previous answers visible to later participants
+
+        Args:
+            exam: ImmersiveExam object
+            participant: Current participant
+
+        Returns:
+            List of answer data dictionaries
+        """
+        previous_answers = []
+        question_index = exam.current_question_index
+
+        for p in sorted(exam.participants, key=lambda x: x.order):
+            if p.order < participant.order and question_index < len(p.answers):
+                answer = p.answers[question_index]
+                if answer is not None:
+                    previous_answers.append(self._get_participant_answer_data(p, question_index))
+
+        return previous_answers
+
+    def _get_previous_answers_after_round(
+        self, exam: ImmersiveExam, participant_id: str, participants_answered: int
+    ) -> List[Dict[str, Any]]:
+        """
+        Get all answers after everyone has answered (reveal all strategy)
+
+        Args:
+            exam: ImmersiveExam object
+            participant_id: ID of the requesting participant
+            participants_answered: Number of participants who answered
+
+        Returns:
+            List of answer data dictionaries
+        """
+        previous_answers = []
+        question_index = exam.current_question_index
+
+        if participants_answered == len(exam.participants):
+            for p in exam.participants:
+                if p.participant_id != participant_id and question_index < len(p.answers):
+                    answer = p.answers[question_index]
+                    if answer is not None:
+                        previous_answers.append(self._get_participant_answer_data(p, question_index))
+
+        return previous_answers
+
     def get_exam_status(self, exam_id: str, participant_id: str) -> Optional[ImmersiveExamStatus]:
         """
         Get current status of the exam for a specific participant
@@ -143,70 +232,36 @@ class ImmersiveExamService:
             participant_id: ID of the participant requesting status
 
         Returns:
-            ImmersiveExamStatus object
+            ImmersiveExamStatus object or None if exam/participant not found
         """
         exam = self.active_exams.get(exam_id)
         if not exam:
             return None
 
-        # Find participant
-        participant = None
-        for p in exam.participants:
-            if p.participant_id == participant_id:
-                participant = p
-                break
-
+        participant = self._find_participant(exam, participant_id)
         if not participant:
             return None
 
         # Count participants who have answered current question
         participants_answered = sum(1 for p in exam.participants if p.has_answered_current)
 
-        # Current question (if exam is in progress)
+        # Get current question if exam is in progress
         current_question = None
         if exam.status == "in_progress" and exam.current_question_index < len(exam.questions):
             current_question = exam.questions[exam.current_question_index]
 
-        # Determine if participant can see previous answers
+        # Determine previous answers based on reveal strategy
         can_see_previous = False
-        previous_answers = []
+        previous_answers: List[Dict[str, Any]] = []
 
         if exam.config.reveal_strategy == RevealStrategy.REVEAL_TO_LATER_PARTICIPANTS:
-            # Show answers from participants with lower order (who answered before)
             can_see_previous = True
-            for p in sorted(exam.participants, key=lambda x: x.order):
-                if p.order < participant.order and exam.current_question_index < len(p.answers):
-                    answer = p.answers[exam.current_question_index]
-                    if answer is not None:
-                        previous_answers.append({
-                            'participant_id': p.participant_id,
-                            'participant_type': p.participant_type.value,
-                            'answer': answer,
-                            'is_correct': (
-                                p.scores[exam.current_question_index]
-                                if exam.current_question_index < len(p.scores)
-                                else False
-                            )
-                        })
-
+            previous_answers = self._get_previous_answers_for_later_participants(exam, participant)
         elif exam.config.reveal_strategy == RevealStrategy.REVEAL_ALL_AFTER_ROUND:
-            # Show all answers after everyone has answered current question
-            if participants_answered == len(exam.participants):
-                can_see_previous = True
-                for p in exam.participants:
-                    if p.participant_id != participant_id and exam.current_question_index < len(p.answers):
-                        answer = p.answers[exam.current_question_index]
-                        if answer is not None:
-                            previous_answers.append({
-                                'participant_id': p.participant_id,
-                                'participant_type': p.participant_type.value,
-                                'answer': answer,
-                                'is_correct': (
-                                    p.scores[exam.current_question_index]
-                                    if exam.current_question_index < len(p.scores)
-                                    else False
-                                )
-                            })
+            can_see_previous = participants_answered == len(exam.participants)
+            previous_answers = self._get_previous_answers_after_round(
+                exam, participant_id, participants_answered
+            )
 
         return ImmersiveExamStatus(
             exam_id=exam_id,
