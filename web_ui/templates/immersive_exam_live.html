@@ -36,7 +36,7 @@
             <div style="background: #fff3cd; padding: 20px; border-radius: 8px; border-left: 4px solid #ffc107;">
                 <h3 style="margin-bottom: 15px;">Please identify yourself</h3>
                 <div style="display: flex; gap: 10px;">
-                    <input type="text" id="participant_id" placeholder="Enter your username or agent name" style="flex: 1;">
+                    <input type="text" id="participant_id" placeholder="Enter your username or RAG bot name" style="flex: 1;">
                     <button onclick="login()" class="button">Join Exam</button>
                 </div>
             </div>
@@ -102,7 +102,7 @@ async function loadExam() {
 function login() {
     const participantId = document.getElementById('participant_id').value.trim();
     if (!participantId) {
-        alert('Please enter your username or agent name');
+        alert('Please enter your username or RAG bot name');
         return;
     }
     

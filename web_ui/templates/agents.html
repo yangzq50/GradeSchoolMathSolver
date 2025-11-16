@@ -4,7 +4,7 @@
 <h2 style="color: #667eea; margin-bottom: 30px;">RAG Bots Management</h2>
 
 <div style="background: #f0f4ff; padding: 30px; border-radius: 10px; margin-bottom: 30px;">
-    <h3 style="color: #667eea; margin-bottom: 20px;">Available Agents</h3>
+    <h3 style="color: #667eea; margin-bottom: 20px;">Available RAG Bots</h3>
     
     {% if agents %}
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
@@ -40,22 +40,22 @@
                     {% endif %}
                 </li>
             </ul>
-            <button onclick="testAgent('{{ agent.name }}')" class="button" style="width: 100%; margin-top: 15px;">
-                Test Agent
+            <button onclick="testBot('{{ agent.name }}')" class="button" style="width: 100%; margin-top: 15px;">
+                Test RAG Bot
             </button>
         </div>
         {% endfor %}
     </div>
     {% else %}
-    <p style="color: #666;">No agents configured. Default agents will be created on first run.</p>
+    <p style="color: #666;">No RAG bots configured. Default bots will be created on first run.</p>
     {% endif %}
 </div>
 
 <div style="background: #f0f4ff; padding: 30px; border-radius: 10px;">
-    <h3 style="color: #667eea; margin-bottom: 20px;">Test Agent</h3>
+    <h3 style="color: #667eea; margin-bottom: 20px;">Test RAG Bot</h3>
     <form id="testAgentForm">
         <div class="form-group">
-            <label for="agent_name">Agent Name:</label>
+            <label for="agent_name">RAG Bot Name:</label>
             <select id="agent_name" name="agent_name" required>
                 {% for agent in agents %}
                 <option value="{{ agent.name }}">{{ agent.name }}</option>
@@ -94,8 +94,8 @@
 <div id="message"></div>
 
 <script>
-function testAgent(agentName) {
-    document.getElementById('agent_name').value = agentName;
+function testBot(botName) {
+    document.getElementById('agent_name').value = botName;
     document.getElementById('testAgentForm').scrollIntoView({ behavior: 'smooth' });
 }
 
@@ -108,7 +108,7 @@ document.getElementById('testAgentForm').addEventListener('submit', async (e) =>
     const questionCount = parseInt(document.getElementById('test_question_count').value);
     
     const messageDiv = document.getElementById('message');
-    messageDiv.innerHTML = '<div style="text-align: center; padding: 20px; background: #f0f4ff; border-radius: 10px; margin-top: 20px;">Running agent test...</div>';
+    messageDiv.innerHTML = '<div style="text-align: center; padding: 20px; background: #f0f4ff; border-radius: 10px; margin-top: 20px;">Running RAG bot test...</div>';
     
     try {
         const response = await fetch('/api/exam/agent', {
@@ -133,7 +133,7 @@ document.getElementById('testAgentForm').addEventListener('submit', async (e) =>
             messageDiv.innerHTML = `<div class="error">${data.error}</div>`;
         }
     } catch (error) {
-        messageDiv.innerHTML = '<div class="error">Error running agent test</div>';
+        messageDiv.innerHTML = '<div class="error">Error running RAG bot test</div>';
     }
 });
 
@@ -143,7 +143,7 @@ function displayTestResults(data) {
     // Summary
     html += `
         <div style="text-align: center; margin-bottom: 30px;">
-            <h3 style="color: #667eea;">Agent: ${data.agent_name}</h3>
+            <h3 style="color: #667eea;">RAG Bot: ${data.agent_name}</h3>
             <h4 style="color: #666; margin-top: 10px;">Score: ${data.correct_answers}/${data.total_questions} (${data.score}%)</h4>
         </div>
     `;
@@ -156,11 +156,11 @@ function displayTestResults(data) {
         html += `
             <div style="background: ${bgColor}; padding: 20px; margin-bottom: 15px; border-radius: 8px; border-left: 4px solid ${borderColor};">
                 <h4 style="color: #333; margin-bottom: 10px;">Question ${result.question_number}</h4>
-                <p style="margin-bottom: 8px;"><strong>Question:</strong> ${result.question}</p>
-                <p style="margin-bottom: 8px;"><strong>Equation:</strong> ${result.equation}</p>
-                <p style="margin-bottom: 8px;"><strong>Agent Answer:</strong> ${result.agent_answer}</p>
+                <p style="margin-bottom: 8px;"><strong>Question:</strong> ${result.question || 'N/A'}</p>
+                <p style="margin-bottom: 8px;"><strong>Equation:</strong> ${result.equation || 'N/A'}</p>
+                <p style="margin-bottom: 8px;"><strong>RAG Bot Answer:</strong> ${result.agent_answer}</p>
                 <p style="margin-bottom: 8px;"><strong>Correct Answer:</strong> ${result.correct_answer}</p>
-                <p style="margin-bottom: 8px;"><strong>Category:</strong> ${result.category}</p>
+                <p style="margin-bottom: 8px;"><strong>Category:</strong> ${result.category || 'unknown'}</p>
                 <p style="margin-bottom: 8px; color: ${borderColor}; font-weight: bold;">
                     ${result.is_correct ? '✓ Correct' : '✗ Incorrect'}
                 </p>
