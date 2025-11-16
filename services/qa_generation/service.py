@@ -10,6 +10,21 @@ from models import Question
 from config import Config
 
 
+def format_number(value: float) -> str:
+    """
+    Format a number to display as integer if it's a whole number, otherwise as float.
+    
+    Args:
+        value: The number to format
+        
+    Returns:
+        String representation of the number
+    """
+    if value == int(value):
+        return str(int(value))
+    return str(value)
+
+
 class QAGenerationService:
     """
     Service for generating math questions
@@ -98,10 +113,11 @@ class QAGenerationService:
         equation_type = random.choice(['parentheses_div', 'complex_mult', 'multi_op'])
 
         if equation_type == 'parentheses_div':
-            # Ensure clean division
-            product = num1 * num3
-            equation = f"({num2} + {product}) / {num1}"
-            answer = (num2 + product) / num1
+            # Ensure clean division - make sure numerator is divisible by denominator
+            # Use (num2 * num1 + num3 * num1) / num1 = num2 + num3
+            numerator = num1 * (num2 + num3)
+            equation = f"{numerator} / {num1}"
+            answer = num2 + num3
         elif equation_type == 'complex_mult':
             equation = f"({num1} + {num2}) * {num3}"
             answer = (num1 + num2) * num3
