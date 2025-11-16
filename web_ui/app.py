@@ -218,7 +218,7 @@ def api_submit_human_exam():
 
 @app.route('/api/exam/agent', methods=['POST'])
 def api_conduct_agent_exam():
-    """API: Conduct exam for AI agent"""
+    """API: Conduct exam for RAG bot"""
     data = request.json
 
     try:

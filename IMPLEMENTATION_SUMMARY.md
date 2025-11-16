@@ -76,7 +76,7 @@ All 9 components from the original specification have been implemented:
 - **Features**:
   - Generate exams with specified difficulty
   - Support human exams
-  - Support AI agent exams
+  - Support RAG bot exams
   - Coordinate all services
   - Update user statistics
   - Store quiz history
@@ -101,7 +101,7 @@ All 9 components from the original specification have been implemented:
 - **Design**: Modern, responsive UI
 - **Tested**: All routes working
 
-### 7. AI Agent Service ✅
+### 7. RAG Bot Service ✅
 - **Status**: Fully Implemented
 - **File**: `services/agent/service.py`
 - **Features**:
@@ -277,7 +277,7 @@ mgmt.create_agent(agent)
 - Track user statistics and history
 - Store quiz history for RAG
 - Run exams for humans
-- Run exams for AI agents
+- Run exams for RAG bots
 - Test different agent strategies
 - Compare agent performance
 - View user progress over time

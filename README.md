@@ -10,9 +10,9 @@ An AI-powered Grade School Math Solver with RAG (Retrieval-Augmented Generation)
 - **Question Classification**: Categorize questions by type (addition, subtraction, multiplication, etc.)
 - **User Management**: Track user progress, answer history, and performance statistics
 - **Quiz History with RAG**: Store and retrieve similar questions using Elasticsearch for personalized learning
-- **Intelligent AI Agents**: Configurable agents that can use classification and RAG for better problem-solving
+- **Intelligent RAG bots**: Configurable agents that can use classification and RAG for better problem-solving
 - **Web Interface**: User-friendly Flask-based web UI for taking exams and viewing statistics
-- **Agent Management**: Create and test different AI agent configurations
+- **Agent Management**: Create and test different RAG bot configurations
 - **Performance Tracking**: Monitor correctness rates, recent performance, and trends
 - **🆕 Immersive Exams**: Synchronized exams where all participants answer the same questions with optional answer reveal strategies
 - **🆕 Teacher Service**: Optional educational feedback for wrong answers to help users learn from mistakes
@@ -50,14 +50,14 @@ The system consists of 12 main components:
 
 ### 5. Exam Service
 - Coordinates question generation and answer evaluation
-- Supports both human and AI agent exams
+- Supports both human and RAG bot exams
 - Updates user statistics and quiz history
 - Integrates teacher service for human feedback
 
 ### 6. Immersive Exam Service
 - Synchronized exam management for multiple participants
 - Pre-generates shared questions for all participants
-- Ordered participant registration (humans and AI agents)
+- Ordered participant registration (humans and RAG bots)
 - Configurable reveal strategies for cheating experiments
 - Server-controlled question progression
 - Real-time status updates and results
@@ -85,7 +85,7 @@ The system consists of 12 main components:
 - Teacher feedback display
 - Mistake review interface
 
-### 10. AI Agent Service
+### 10. RAG Bot Service
 - Configurable problem-solving agents
 - Optional question classification
 - Optional RAG from quiz history
@@ -217,13 +217,13 @@ The mistake review feature allows you to learn from your past errors:
 5. Click "Create Exam"
 6. Register participants:
    - Add human users by username
-   - Add AI agents from the dropdown
+   - Add RAG bots from the dropdown
 7. Click "Start Exam" when all participants are registered
 8. Participants join using their username/agent name
 9. Answer questions in synchronized order
 10. View final results with leaderboard
 
-### Testing an AI Agent
+### Testing a RAG Bot
 
 1. Navigate to the "Agents" page
 2. Select an agent configuration
@@ -454,7 +454,7 @@ GradeSchoolMathSolver-RAG/
 │   ├── immersive_exam/   # Immersive exam management
 │   ├── teacher/          # Teacher feedback service
 │   ├── mistake_review/   # Mistake review service (NEW)
-│   ├── agent/            # AI agent logic
+│   ├── agent/            # RAG bot logic
 │   └── agent_management/ # Agent configuration
 ├── web_ui/               # Flask web interface
 │   ├── app.py           # Web application

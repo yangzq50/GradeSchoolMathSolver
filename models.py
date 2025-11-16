@@ -50,7 +50,7 @@ class QuizHistory(BaseModel):
 
 
 class AgentConfig(BaseModel):
-    """AI Agent configuration"""
+    """RAG bot configuration"""
     name: str
     use_classification: bool = False
     use_rag: bool = False

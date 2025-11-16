@@ -1,6 +1,6 @@
 """
-AI Agent Service
-AI agent that can solve math problems with optional RAG and classification
+RAG Bot Service
+RAG bot that can solve math problems with optional RAG and classification
 """
 import requests
 from typing import Dict, Any
@@ -11,7 +11,7 @@ from services.quiz_history import QuizHistoryService
 
 
 class AgentService:
-    """AI Agent for solving math problems"""
+    """RAG bot for solving math problems"""
 
     def __init__(self, config: AgentConfig):
         self.config = config

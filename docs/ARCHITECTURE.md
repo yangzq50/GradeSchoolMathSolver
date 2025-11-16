@@ -105,9 +105,9 @@ GradeSchoolMathSolver-RAG is a modular AI-powered math learning system with 9 co
   - Similarity matching
   - Category filtering
   - Top-K retrieval
-- **Use Case**: Provide context to AI agents
+- **Use Case**: Provide context to RAG bots
 
-### 7. AI Agent Service
+### 7. RAG Bot Service
 - **Purpose**: Solve math problems
 - **Configuration Options**:
   - use_classification: Enable question categorization
