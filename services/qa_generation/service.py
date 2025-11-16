@@ -1,19 +1,32 @@
 """
 QA Generation Service
-Generates grade school math quiz problems based on difficulty level
+Generates grade school math quiz problems based on difficulty level with retry logic
 """
 import random
 from typing import Tuple
 import requests
+from requests.exceptions import RequestException, Timeout
 from models import Question
 from config import Config
 
 
 class QAGenerationService:
-    """Service for generating math questions"""
+    """
+    Service for generating math questions
 
-    def __init__(self):
+    This service generates mathematical equations and converts them to natural language
+    questions using AI models with fallback to template-based generation.
+
+    Attributes:
+        config: Configuration object
+        max_retries: Maximum number of API retry attempts
+        timeout: API request timeout in seconds
+    """
+
+    def __init__(self, max_retries: int = 3, timeout: int = 30):
         self.config = Config()
+        self.max_retries = max_retries
+        self.timeout = timeout
 
     def generate_equation(self, difficulty: str) -> Tuple[str, float]:
         """
@@ -24,7 +37,13 @@ class QAGenerationService:
 
         Returns:
             Tuple of (equation_string, answer)
+
+        Raises:
+            ValueError: If difficulty level is invalid
         """
+        if difficulty not in ['easy', 'medium', 'hard']:
+            raise ValueError(f"Invalid difficulty: {difficulty}. Must be 'easy', 'medium', or 'hard'")
+
         if difficulty == 'easy':
             return self._generate_easy_equation()
         elif difficulty == 'medium':
@@ -88,14 +107,55 @@ class QAGenerationService:
             answer = (num1 + num2) * num3
         else:
             # Multiple operations with parentheses
-            equation = f"{num1} * ({num2} + {num3}) - {random.randint(1, 20)}"
-            answer = eval(equation)
+            num4 = random.randint(1, 20)
+            equation = f"{num1} * ({num2} + {num3}) - {num4}"
+            answer = num1 * (num2 + num3) - num4
 
         return equation, float(answer)
 
+    def _try_ai_question_generation(self, prompt: str) -> str:
+        """
+        Try to generate question using AI API
+
+        Args:
+            prompt: Prompt for the AI model
+
+        Returns:
+            Generated question text or empty string if failed
+        """
+        try:
+            response = requests.post(
+                f"{self.config.AI_MODEL_URL}/engines/{self.config.LLM_ENGINE}/v1/chat/completions",
+                json={
+                    "model": self.config.AI_MODEL_NAME,
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": "You are a helpful math teacher creating grade school word problems."
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ]
+                },
+                timeout=self.timeout
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                choices = result.get('choices', [])
+                if choices:
+                    content = choices[0].get('message', {}).get('content', '').strip()
+                    if content:
+                        return content
+            return ""
+        except (Timeout, RequestException):
+            return ""
+
     def generate_question_text(self, equation: str, answer: float) -> str:
         """
-        Generate natural language question from equation using AI model
+        Generate natural language question from equation using AI model with retry logic
 
         Args:
             equation: Mathematical equation
@@ -114,42 +174,17 @@ The word problem should:
 
 Only provide the word problem text, nothing else."""
 
-        try:
-            # Use OpenAI-compatible chat/completions API
-            response = requests.post(
-                f"{self.config.AI_MODEL_URL}/engines/{self.config.LLM_ENGINE}/v1/chat/completions",
-                json={
-                    "model": self.config.AI_MODEL_NAME,
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": "You are a helpful math teacher creating grade school word problems."
-                        },
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ]
-                },
-                timeout=30
-            )
+        # Try with AI model first with retries
+        for attempt in range(self.max_retries):
+            result = self._try_ai_question_generation(prompt)
+            if result:
+                return result
 
-            if response.status_code == 200:
-                result = response.json()
-                # Extract content from OpenAI-compatible response
-                choices = result.get('choices', [])
-                if choices:
-                    return choices[0].get('message', {}).get('content', '').strip()
-                else:
-                    # Fallback to simple template
-                    return self._generate_simple_question(equation)
-            else:
-                # Fallback to simple template
-                return self._generate_simple_question(equation)
+            if attempt < self.max_retries - 1:
+                print(f"AI generation attempt {attempt + 1}/{self.max_retries} failed, retrying...")
 
-        except Exception as e:
-            print(f"Error generating question with AI: {e}")
-            return self._generate_simple_question(equation)
+        # Fallback if all retries fail
+        return self._generate_simple_question(equation)
 
     def _generate_simple_question(self, equation: str) -> str:
         """Fallback method to generate simple question without AI"""
