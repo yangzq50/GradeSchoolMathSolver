@@ -13,10 +13,10 @@ from config import Config
 def format_number(value: float) -> str:
     """
     Format a number to display as integer if it's a whole number, otherwise as float.
-    
+
     Args:
         value: The number to format
-        
+
     Returns:
         String representation of the number
     """
