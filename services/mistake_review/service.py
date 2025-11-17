@@ -47,10 +47,10 @@ class MistakeReviewService:
             sort = [{"timestamp": {"order": "asc"}}]
 
             hits = self.account_service.db.search_records(
-                index_name=self.account_service.answers_index,
+                collection_name=self.account_service.answers_index,
                 query=query,
                 sort=sort,
-                size=1
+                limit=1
             )
 
             if not hits:

@@ -141,8 +141,8 @@ class AccountService:
 
         try:
             results = self.db.search_records(
-                index_name=self.users_index,
-                size=1000
+                collection_name=self.users_index,
+                limit=1000
             )
             users = [hit['_source']['username'] for hit in results]
             return users
@@ -241,10 +241,10 @@ class AccountService:
             sort = [{"timestamp": {"order": "desc"}}]
 
             all_answers = self.db.search_records(
-                index_name=self.answers_index,
+                collection_name=self.answers_index,
                 query=query,
                 sort=sort,
-                size=10000
+                limit=10000
             )
 
             if not all_answers:
@@ -301,10 +301,10 @@ class AccountService:
             sort = [{"timestamp": {"order": "desc"}}]
 
             hits = self.db.search_records(
-                index_name=self.answers_index,
+                collection_name=self.answers_index,
                 query=query,
                 sort=sort,
-                size=limit
+                limit=limit
             )
 
             # Convert to list of dicts with id included and timestamp parsed

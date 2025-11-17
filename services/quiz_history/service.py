@@ -144,10 +144,10 @@ class QuizHistoryService:
 
             # Use database service search
             hits = self.db.search_records(
-                index_name=self.index_name,
+                collection_name=self.index_name,
                 query=query,
                 sort=sort,
-                size=top_k
+                limit=top_k
             )
 
             results = []
@@ -191,10 +191,10 @@ class QuizHistoryService:
             sort = [{"timestamp": {"order": "desc"}}]
 
             hits = self.db.search_records(
-                index_name=self.index_name,
+                collection_name=self.index_name,
                 query=query,
                 sort=sort,
-                size=limit
+                limit=limit
             )
 
             results = []
