@@ -77,6 +77,10 @@ def test_full_exam_flow_with_mocked_external_services(mock_requests_post, mock_e
     assert results["results"][1]["is_correct"] is False, "Second answer should be incorrect"
     assert results["results"][2]["is_correct"] is True, "Third answer should be correct"
 
+    # Refresh the index to make documents searchable (for testing)
+    if service.account_service.es:
+        service.account_service.es.indices.refresh(index=service.account_service.answers_index)
+
     # Step 4: Verify user stats were updated
     user_stats = service.account_service.get_user_stats("smoke_test_user")
     assert user_stats is not None, "User stats should exist"

@@ -5,6 +5,7 @@ Manages reviewing past mistakes for users
 import sys
 import os
 from typing import Optional, List
+from datetime import datetime
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -74,13 +75,14 @@ class MistakeReviewService:
             print(f"Error getting next mistake: {e}")
             return None
 
-    def mark_as_reviewed(self, username: str, mistake_id: str) -> bool:
+    def mark_as_reviewed(self, username: str, mistake_id: str, refresh: bool = False) -> bool:
         """
         Mark a mistake as reviewed
 
         Args:
             username: Username
             mistake_id: ID of the mistake to mark as reviewed
+            refresh: Whether to refresh the index immediately (for testing)
 
         Returns:
             True if successful, False otherwise
@@ -104,6 +106,11 @@ class MistakeReviewService:
                 id=mistake_id,
                 body={"doc": {"reviewed": True}}
             )
+            
+            # Refresh index if requested (useful for testing)
+            if refresh and self.account_service.es:
+                self.account_service.es.indices.refresh(index=self.account_service.answers_index)
+                
             return True
         except Exception as e:
             print(f"Error marking mistake as reviewed: {e}")

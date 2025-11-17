@@ -31,12 +31,13 @@ GradeSchoolMathSolver-RAG is a modular AI-powered math learning system with 9 co
 ┌──▼────────▼─────────────▼────────────▼───────────▼──────────▼───┐
 │                    External Services Layer                       │
 ├──────────────────────────────────────────────────────────────────┤
-│ AI Model (Docker Desktop) │  SQLite Database  │  Elasticsearch    │
-│ Port 12434                 │  data/solver.db   │  Port 9200        │
-│ - LLaMA 3.2 (quantized)    │  - Users          │  - Quiz History   │
-│ - OpenAI API Format        │  - Answer History │  - RAG Search     │
-│ - Chat Completions         │  - Statistics     │  - Similarity     │
-└────────────────────────────┴───────────────────┴───────────────────┘
+│ AI Model (Docker Desktop) │         Elasticsearch                 │
+│ Port 12434                 │         Port 9200                    │
+│ - LLaMA 3.2 (quantized)    │  - Users Index                       │
+│ - OpenAI API Format        │  - Quiz History Index                │
+│ - Chat Completions         │  - Answer History & Statistics       │
+│                            │  - RAG Search & Similarity           │
+└────────────────────────────┴──────────────────────────────────────┘
 ```
 
 ## Service Details
@@ -86,10 +87,10 @@ GradeSchoolMathSolver-RAG is a modular AI-powered math learning system with 9 co
 
 ### 5. Account Service
 - **Purpose**: User management
-- **Database**: SQLite
-- **Tables**:
+- **Storage**: Elasticsearch
+- **Indices**:
   - users: User accounts
-  - answer_history: All answers with timestamps
+  - quiz_history: All answers with timestamps
 - **Statistics**:
   - Total questions answered
   - Correct answer count
@@ -172,49 +173,37 @@ GradeSchoolMathSolver-RAG is a modular AI-powered math learning system with 9 co
 11. Results → Web UI → User: Show performance
 ```
 
-## Database Schemas
+## Storage Schemas
 
-### SQLite (Account Service)
+### Elasticsearch (Unified Storage)
 
-**users table:**
-```sql
-CREATE TABLE users (
-    id INTEGER PRIMARY KEY,
-    username VARCHAR(100) UNIQUE NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+**users index:**
+```json
+{
+  "mappings": {
+    "properties": {
+      "username": {"type": "keyword"},
+      "created_at": {"type": "date"}
+    }
+  }
+}
 ```
 
-**answer_history table:**
-```sql
-CREATE TABLE answer_history (
-    id INTEGER PRIMARY KEY,
-    username VARCHAR(100) NOT NULL,
-    question VARCHAR(500) NOT NULL,
-    equation VARCHAR(200) NOT NULL,
-    user_answer FLOAT NOT NULL,
-    correct_answer FLOAT NOT NULL,
-    is_correct BOOLEAN NOT NULL,
-    category VARCHAR(50) NOT NULL,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-### Elasticsearch (Quiz History Service)
-
-**quiz_history index:**
+**quiz_history index (unified with account service):**
 ```json
 {
   "mappings": {
     "properties": {
       "username": {"type": "keyword"},
       "question": {"type": "text"},
+      "equation": {"type": "text"},
       "user_equation": {"type": "text"},
-      "user_answer": {"type": "float"},
-      "correct_answer": {"type": "float"},
+      "user_answer": {"type": "integer"},
+      "correct_answer": {"type": "integer"},
       "is_correct": {"type": "boolean"},
       "category": {"type": "keyword"},
-      "timestamp": {"type": "date"}
+      "timestamp": {"type": "date"},
+      "reviewed": {"type": "boolean"}
     }
   }
 }
@@ -231,9 +220,6 @@ All services are configured via environment variables in `.env`:
 AI_MODEL_URL=http://localhost:12434
 AI_MODEL_NAME=ai/llama3.2:1B-Q4_0
 LLM_ENGINE=llama.cpp
-
-# Database
-DATABASE_PATH=data/math_solver.db
 
 # Elasticsearch
 ELASTICSEARCH_HOST=localhost
@@ -263,19 +249,17 @@ FLASK_DEBUG=False
 - Separate AI model service (Docker Model Runner, Ollama, or cloud API)
 - Dedicated Elasticsearch cluster
 - Load balanced web servers
-- PostgreSQL instead of SQLite (for scaling)
+- Redis caching layer
 
 ## Scaling Considerations
 
 ### Vertical Scaling
 - Increase AI model resources (GPU)
 - More RAM for Elasticsearch
-- Larger SQLite → PostgreSQL
 
 ### Horizontal Scaling
 - Multiple web UI instances (stateless)
 - Elasticsearch cluster with replicas
-- Shared database connection pooling
 - Load balancer in front of web UI
 
 ### Performance Optimization

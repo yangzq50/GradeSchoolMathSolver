@@ -74,7 +74,7 @@ class QuizHistoryService:
         """
         Create Elasticsearch index with appropriate mappings
 
-        Defines schema for efficient storage and retrieval of quiz history.
+        Defines unified schema for efficient storage and retrieval of quiz history.
         """
         if not self.es:
             return
@@ -84,12 +84,14 @@ class QuizHistoryService:
                 "properties": {
                     "username": {"type": "keyword"},
                     "question": {"type": "text"},
-                    "user_equation": {"type": "text"},
+                    "equation": {"type": "text"},
+                    "user_equation": {"type": "text"},  # Alias for equation (backward compatibility)
                     "user_answer": {"type": "integer"},
                     "correct_answer": {"type": "integer"},
                     "is_correct": {"type": "boolean"},
                     "category": {"type": "keyword"},
-                    "timestamp": {"type": "date"}
+                    "timestamp": {"type": "date"},
+                    "reviewed": {"type": "boolean"}
                 }
             }
         }
@@ -117,12 +119,14 @@ class QuizHistoryService:
             doc = {
                 "username": history.username,
                 "question": history.question,
-                "user_equation": history.user_equation,
+                "equation": history.user_equation,  # Store as equation
+                "user_equation": history.user_equation,  # Keep for backward compatibility
                 "user_answer": history.user_answer,
                 "correct_answer": history.correct_answer,
                 "is_correct": history.is_correct,
                 "category": history.category,
-                "timestamp": history.timestamp.isoformat()
+                "timestamp": history.timestamp.isoformat(),
+                "reviewed": False  # Default value for new records
             }
 
             self.es.index(index=self.index_name, document=doc)

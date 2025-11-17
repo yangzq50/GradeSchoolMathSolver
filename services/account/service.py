@@ -234,7 +234,7 @@ class AccountService:
 
     def record_answer(self, username: str, question: str, equation: str,
                       user_answer: Optional[int], correct_answer: int,
-                      category: str) -> bool:
+                      category: str, refresh: bool = False) -> bool:
         """
         Record a user's answer with validation
 
@@ -245,6 +245,7 @@ class AccountService:
             user_answer: User's answer
             correct_answer: Correct answer
             category: Question category (max 50 chars)
+            refresh: Whether to refresh the index immediately (for testing)
 
         Returns:
             True if successful, False otherwise
@@ -287,6 +288,11 @@ class AccountService:
             }
 
             self.es.index(index=self.answers_index, document=doc)
+            
+            # Refresh index if requested (useful for testing)
+            if refresh and self.es:
+                self.es.indices.refresh(index=self.answers_index)
+                
             return True
         except ESConnectionError as e:
             print(f"Connection error recording answer: {e}")

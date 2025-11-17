@@ -22,10 +22,10 @@ def test_mistake_review_service():
     username = f"test_mistake_{random.randint(1000, 9999)}"
     account_service.create_user(username)
 
-    # Record some answers (2 wrong, 1 correct)
-    account_service.record_answer(username, "What is 5 + 3?", "5 + 3", 7, 8, "addition")  # Wrong
-    account_service.record_answer(username, "What is 10 - 4?", "10 - 4", 6, 6, "subtraction")  # Correct
-    account_service.record_answer(username, "What is 3 * 4?", "3 * 4", 11, 12, "multiplication")  # Wrong
+    # Record some answers (2 wrong, 1 correct) with refresh for testing
+    account_service.record_answer(username, "What is 5 + 3?", "5 + 3", 7, 8, "addition", refresh=True)  # Wrong
+    account_service.record_answer(username, "What is 10 - 4?", "10 - 4", 6, 6, "subtraction", refresh=True)  # Correct
+    account_service.record_answer(username, "What is 3 * 4?", "3 * 4", 11, 12, "multiplication", refresh=True)  # Wrong
 
     # Test get unreviewed count
     count = mistake_service.get_unreviewed_count(username)
@@ -36,12 +36,12 @@ def test_mistake_review_service():
     mistake = mistake_service.get_next_mistake(username)
     assert mistake is not None, "Expected a mistake to review"
     assert mistake.question == "What is 5 + 3?", "Expected first wrong answer"
-    assert mistake.user_answer == 7.0, "Expected user answer to be 7.0"
-    assert mistake.correct_answer == 8.0, "Expected correct answer to be 8.0"
+    assert mistake.user_answer == 7, "Expected user answer to be 7"
+    assert mistake.correct_answer == 8, "Expected correct answer to be 8"
     print(f"✅ Got next mistake: {mistake.question}")
 
     # Test mark as reviewed
-    success = mistake_service.mark_as_reviewed(username, mistake.mistake_id)
+    success = mistake_service.mark_as_reviewed(username, mistake.mistake_id, refresh=True)
     assert success, "Failed to mark mistake as reviewed"
     print("✅ Marked mistake as reviewed")
 
@@ -62,7 +62,7 @@ def test_mistake_review_service():
     print(f"✅ Got all unreviewed mistakes: {len(all_mistakes)}")
 
     # Mark second mistake as reviewed
-    success2 = mistake_service.mark_as_reviewed(username, mistake2.mistake_id)
+    success2 = mistake_service.mark_as_reviewed(username, mistake2.mistake_id, refresh=True)
     assert success2, "Failed to mark second mistake as reviewed"
 
     # Test no more mistakes

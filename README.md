@@ -39,7 +39,7 @@ The system consists of 12 main components:
 - Categories: addition, subtraction, multiplication, division, mixed_operations, parentheses, fractions
 
 ### 3. Account Service
-- SQLite database for user management
+- Elasticsearch storage for user management
 - Tracks answer correctness history with timestamps
 - Calculates overall correctness and recent 100 questions score
 - Tracks reviewed status for mistake review feature
@@ -467,7 +467,8 @@ Key settings:
 - `AI_MODEL_NAME`: Name of the model to use (e.g., ai/llama3.2:1B-Q4_0)
 - `LLM_ENGINE`: LLM engine to use (e.g., llama.cpp)
 - `ELASTICSEARCH_HOST`: Elasticsearch hostname
-- `DATABASE_PATH`: Path to SQLite database
+- `ELASTICSEARCH_PORT`: Elasticsearch port
+- `ELASTICSEARCH_INDEX`: Elasticsearch index name for quiz history
 - `TEACHER_SERVICE_ENABLED`: Enable/disable teacher feedback (default: True)
 
 ### Teacher Service Configuration
