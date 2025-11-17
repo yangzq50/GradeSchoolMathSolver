@@ -4,7 +4,7 @@ Manages user accounts and statistics using Elasticsearch with proper error handl
 """
 from datetime import datetime
 from typing import List, Optional, Dict, Any
-from elasticsearch import Elasticsearch, ConnectionError as ESConnectionError, NotFoundError
+from elasticsearch import Elasticsearch, ConnectionError as ESConnectionError, NotFoundError, ConflictError
 from config import Config
 from models import UserStats
 
@@ -156,19 +156,19 @@ class AccountService:
             return False
 
         try:
-            # Check if user already exists
-            existing = self.get_user(username)
-            if existing:
-                return False
-
-            # Create user document
+            # Create user document (will fail if user already exists)
             doc = {
                 "username": username,
                 "created_at": datetime.utcnow().isoformat()
             }
 
-            self.es.index(index=self.users_index, id=username, document=doc)
+            # Use create() instead of index() to ensure it fails if user exists
+            self.es.create(index=self.users_index, id=username, document=doc)
             return True
+        except ConflictError:
+            # User already exists
+            print(f"User already exists: {username}")
+            return False
         except ESConnectionError as e:
             print(f"Connection error creating user: {e}")
             return False
