@@ -22,7 +22,7 @@ An AI-powered Grade School Math Solver with RAG (Retrieval-Augmented Generation)
 
 ## 🏗️ Architecture
 
-The system consists of 12 main components:
+The system consists of 13 main components:
 
 ### 0. AI Model Service
 - Uses Docker Desktop models via localhost endpoint (port 12434)
@@ -40,26 +40,32 @@ The system consists of 12 main components:
 - Rule-based classification with optional AI enhancement
 - Categories: addition, subtraction, multiplication, division, mixed_operations, parentheses, fractions
 
-### 3. Account Service
-- Elasticsearch storage for user management
+### 3. Database Service
+- MariaDB 11.8 LTS storage for user management and answer history (default)
+- Proper user isolation with indexed queries
+- ACID-compliant transactions for data integrity
+- Alternative Elasticsearch backend for advanced full-text search
+- See [Database Service Documentation](docs/DATABASE_SERVICE.md) and [MariaDB Integration](docs/MARIADB_INTEGRATION.md)
+
+### 4. Account Service
+- User account creation and management
 - Tracks answer correctness history with timestamps
 - Calculates overall correctness and recent 100 questions score
 - Tracks reviewed status for mistake review feature
-- See [Elasticsearch Storage Documentation](docs/ELASTICSEARCH_STORAGE.md)
 
-### 4. Quiz History Service
-- Elasticsearch integration for RAG capabilities
+### 5. Quiz History Service
+- RAG (Retrieval-Augmented Generation) capabilities
 - Stores question, answer, and context for retrieval
 - Enables similarity search for personalized learning
-- See [Elasticsearch Storage Documentation](docs/ELASTICSEARCH_STORAGE.md)
+- Works with both MariaDB and Elasticsearch backends
 
-### 5. Exam Service
+### 6. Exam Service
 - Coordinates question generation and answer evaluation
 - Supports both human and RAG bot exams
 - Updates user statistics and quiz history
 - Integrates teacher service for human feedback
 
-### 6. Immersive Exam Service
+### 7. Immersive Exam Service
 - Synchronized exam management for multiple participants
 - Pre-generates shared questions for all participants
 - Ordered participant registration (humans and RAG bots)
@@ -67,21 +73,21 @@ The system consists of 12 main components:
 - Server-controlled question progression
 - Real-time status updates and results
 
-### 7. Teacher Service
+### 8. Teacher Service
 - Provides educational feedback for incorrect answers
 - AI-based explanations with template fallback
 - Step-by-step guidance for correct solutions
 - Toggle-able via configuration
 - Only active for human users (not RAG bots)
 
-### 8. Mistake Review Service
+### 9. Mistake Review Service
 - Allows users to review past incorrect answers
 - FIFO (First-In, First-Out) ordering of mistakes
 - Mark mistakes as reviewed to avoid repetition
 - Interactive retry with instant feedback
 - Real-time tracking of unreviewed mistake count
 
-### 9. Web UI Service
+### 10. Web UI Service
 - Flask-based web interface
 - User dashboard with statistics and trends
 - Interactive exam interface
@@ -90,13 +96,13 @@ The system consists of 12 main components:
 - Teacher feedback display
 - Mistake review interface
 
-### 10. RAG Bot Service
+### 11. RAG Bot Service
 - Configurable problem-solving RAG bots
 - Optional question classification
 - Optional RAG from quiz history
 - Provides reasoning for answers
 
-### 11. RAG Bot Management Service
+### 12. RAG Bot Management Service
 - Create, update, and delete RAG bot configurations
 - Pre-configured default RAG bots
 - Test RAG bots with different settings
@@ -106,10 +112,11 @@ The system consists of 12 main components:
 ### Prerequisites
 
 - Python 3.11+
-- Docker Desktop with **Docker Model Runner** enabled (for AI models and Elasticsearch)
-  - **Docker Model Runner** is Docker Desktop's built-in AI model hosting service that runs LLMs locally
+- Docker Desktop with:
+  - **Docker Model Runner** enabled (for AI models)
+  - Docker Desktop's built-in AI model hosting service that runs LLMs locally
   - Provides an OpenAI-compatible API at localhost:12434
-  - See setup instructions below
+- MariaDB 11.8 LTS or Elasticsearch 9.2.1 (MariaDB is default, included in Docker setup)
 - 8GB+ RAM recommended (16GB+ recommended for larger models)
 
 ### Installation
@@ -176,34 +183,42 @@ The system consists of 12 main components:
 
    You have two options for running the application:
 
-   **Option 1: Using Docker Compose (Recommended)**
+   **Option 1: Using Docker Compose with MariaDB (Recommended)**
    
-   This starts both Elasticsearch and the web application in containers:
+   This starts MariaDB and the web application in containers:
    
    ```bash
-   docker-compose up -d
+   docker-compose --profile mariadb up -d
    ```
    
    The web app will be available at `http://localhost:5000`
    
    **What this does:**
-   - Starts Elasticsearch container on port 9200
+   - Starts MariaDB 11.8 LTS container on port 3306
    - Starts the web application container on port 5000
    - Web app connects to Docker Model Runner via `host.docker.internal:12434`
-   - Data is persisted in `./data` directory
+   - Data is persisted in database volumes
    
    To stop all services:
    ```bash
    docker-compose down
    ```
 
-   **Option 2: Elasticsearch in Docker + Web App Locally**
+   **Option 2: Using Docker Compose with Elasticsearch**
+   
+   If you need advanced full-text search capabilities:
+   
+   ```bash
+   DATABASE_BACKEND=elasticsearch docker-compose up -d
+   ```
+
+   **Option 3: MariaDB in Docker + Web App Locally**
    
    If you prefer to run the web app locally (useful for development):
    
-   a. Start only Elasticsearch:
+   a. Start only MariaDB:
    ```bash
-   docker-compose up -d elasticsearch
+   docker-compose --profile mariadb up -d mariadb
    ```
    
    b. Run the web application locally:
@@ -226,8 +241,8 @@ The system consists of 12 main components:
 If you prefer to run everything locally without Docker:
 
 1. **Set up LLM service** - Use any OpenAI-compatible API endpoint (see [AI Model Service Documentation](docs/AI_MODEL_SERVICE.md))
-2. **Install and run Elasticsearch locally**
-3. **Update .env** with your LLM endpoint and Elasticsearch URLs
+2. **Install and run MariaDB 11.8 locally** (or Elasticsearch for full-text search)
+3. **Update .env** with your LLM endpoint and database connection settings
 4. **Run the web application** with `python -m web_ui.app`
 
 ## 📖 Usage
@@ -470,10 +485,43 @@ Key settings:
 - `AI_MODEL_URL`: URL of the AI model service (e.g., http://localhost:12434)
 - `AI_MODEL_NAME`: Name of the model to use (e.g., ai/llama3.2:1B-Q4_0)
 - `LLM_ENGINE`: LLM engine to use (e.g., llama.cpp)
-- `ELASTICSEARCH_HOST`: Elasticsearch hostname
-- `ELASTICSEARCH_PORT`: Elasticsearch port
+- `DATABASE_BACKEND`: Database backend to use (`mariadb` (default) or `elasticsearch`)
+- `MARIADB_HOST`: MariaDB hostname (default: localhost)
+- `MARIADB_PORT`: MariaDB port (default: 3306)
+- `MARIADB_USER`: MariaDB username
+- `MARIADB_PASSWORD`: MariaDB password
+- `MARIADB_DATABASE`: MariaDB database name
+- `ELASTICSEARCH_HOST`: Elasticsearch hostname (if using Elasticsearch backend)
+- `ELASTICSEARCH_PORT`: Elasticsearch port (if using Elasticsearch backend)
 - `ELASTICSEARCH_INDEX`: Elasticsearch index name for quiz history
 - `TEACHER_SERVICE_ENABLED`: Enable/disable teacher feedback (default: True)
+
+### Database Backend Configuration
+
+The system supports two database backends:
+
+**MariaDB (Default)**:
+```bash
+DATABASE_BACKEND=mariadb
+MARIADB_HOST=localhost
+MARIADB_PORT=3306
+MARIADB_USER=math_solver
+MARIADB_PASSWORD=math_solver_password
+MARIADB_DATABASE=math_solver
+```
+
+**Elasticsearch (Alternative)**:
+```bash
+DATABASE_BACKEND=elasticsearch
+ELASTICSEARCH_HOST=localhost
+ELASTICSEARCH_PORT=9200
+ELASTICSEARCH_INDEX=quiz_history
+```
+
+For more details, see:
+- [Database Service Documentation](docs/DATABASE_SERVICE.md)
+- [MariaDB Integration Guide](docs/MARIADB_INTEGRATION.md)
+- [Elasticsearch Storage Documentation](docs/ELASTICSEARCH_STORAGE.md)
 
 ### Teacher Service Configuration
 
@@ -506,7 +554,7 @@ User/Agent Request → Exam Service → QA Generation Service → Questions
                            ↓
                    Account Service → Statistics
                            ↓
-                     Database Storage
+                  Database Storage (MariaDB/Elasticsearch)
 ```
 
 ## 🛠️ Development
@@ -524,6 +572,7 @@ GradeSchoolMathSolver-RAG/
 ├── services/                # Core services
 │   ├── qa_generation/      # Question generation
 │   ├── classification/     # Question classification
+│   ├── database/          # Database service (MariaDB/Elasticsearch)
 │   ├── account/           # User management
 │   ├── quiz_history/      # RAG history storage
 │   ├── exam/             # Exam management
@@ -540,6 +589,10 @@ GradeSchoolMathSolver-RAG/
 │       ├── immersive_exam_results.html
 │       └── mistake_review.html            # (NEW)
 ├── docs/                # Documentation
+│   ├── DATABASE_SERVICE.md               # Database architecture
+│   ├── MARIADB_INTEGRATION.md           # MariaDB guide (NEW)
+│   ├── ELASTICSEARCH_STORAGE.md         # Elasticsearch guide
+│   └── ...
 └── tests/              # Test files
     ├── test_basic.py
     ├── test_teacher_service.py
@@ -609,17 +662,24 @@ If you get errors like `ModuleNotFoundError: No module named 'config'`, `'models
    - Verify resource allocation (CPU/Memory) - at least 8GB RAM recommended
    - Check the Models tab to ensure your model is downloaded and active
 
-### Elasticsearch Connection Issues
+### Database Connection Issues
 
+**MariaDB (Default)**:
+1. Check if MariaDB is running: `docker ps | grep mariadb`
+2. Test connection: `docker exec -it math-solver-mariadb mysql -u math_solver -p`
+3. Check logs: `docker logs math-solver-mariadb`
+4. Verify environment variables in `.env` file
+
+**Elasticsearch (Alternative)**:
 1. Check if ES is running: `docker ps | grep elasticsearch`
 2. Test connection: `curl http://localhost:9200`
-3. The system will work in limited mode without ES
+3. Check logs: `docker logs math-solver-elasticsearch`
 
-### Database Errors
+The system will operate in limited mode if the database is unavailable.
 
-1. Check permissions on data directory
-2. Delete and recreate: `rm data/math_solver.db`
-3. Restart application to recreate tables
+For detailed troubleshooting:
+- [MariaDB Troubleshooting Guide](docs/MARIADB_INTEGRATION.md#troubleshooting)
+- [Database Service Documentation](docs/DATABASE_SERVICE.md#troubleshooting)
 
 ## 📝 License
 
@@ -638,5 +698,6 @@ For questions or support, please open an issue on GitHub.
 - Docker Model Runner for local AI model hosting
 - Ollama for alternative AI model deployment
 - LLaMA 3.2 for language generation
-- Elasticsearch for RAG capabilities
+- MariaDB for reliable database backend
+- Elasticsearch for optional RAG capabilities
 - Flask for web framework
