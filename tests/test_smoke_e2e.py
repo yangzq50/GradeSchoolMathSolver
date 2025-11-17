@@ -76,17 +76,17 @@ def test_full_exam_flow_with_mocked_external_services(mock_requests_post, mock_e
         return {"hits": {"hits": []}}
 
     mock_es_instance.search.side_effect = mock_search
-    
+
     # Mock count to return number of indexed records
     def mock_count(index, body, **kwargs):
         return {"count": len(indexed_records)}
-    
+
     mock_es_instance.count.side_effect = mock_count
-    
+
     # Mock indices.refresh for testing
     mock_es_instance.indices.refresh = MagicMock()
     mock_es_instance.indices.create = MagicMock()
-    
+
     mock_elasticsearch.return_value = mock_es_instance
 
     # Reset global database service to ensure fresh initialization

@@ -8,7 +8,7 @@ This backend creates proper relational tables with typed columns
 based on schema definitions, providing better performance and
 type safety compared to generic JSON storage.
 """
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 import json
 import mysql.connector
 from mysql.connector import Error as MySQLError
@@ -218,7 +218,12 @@ class MariaDBDatabaseService(DatabaseService):
             print(f"Error creating record: {e}")
             return False
 
-    def insert_record(self, collection_name: str, record: Dict[str, Any], record_id: Optional[str] = None) -> Optional[str]:
+    def insert_record(
+        self,
+        collection_name: str,
+        record: Dict[str, Any],
+        record_id: Optional[str] = None
+    ) -> Optional[str]:
         """
         Insert a row (record) in MariaDB (create or update)
 
@@ -400,7 +405,7 @@ class MariaDBDatabaseService(DatabaseService):
             if 'data' in columns:
                 # JSON-based storage
                 where_clauses = []
-                params = []
+                params: List[Union[str, int]] = []
 
                 if filters:
                     for field, value in filters.items():
@@ -442,7 +447,7 @@ class MariaDBDatabaseService(DatabaseService):
             else:
                 # Column-based storage
                 where_clauses = []
-                params = []
+                params: List[Union[str, int]] = []
 
                 if filters:
                     for field, value in filters.items():
@@ -623,8 +628,12 @@ class MariaDBDatabaseService(DatabaseService):
             print(f"Error deleting record: {e}")
             return False
 
-    def count_records(self, collection_name: str, query: Optional[Dict[str, Any]] = None,
-                     filters: Optional[Dict[str, Any]] = None) -> int:
+    def count_records(
+        self,
+        collection_name: str,
+        query: Optional[Dict[str, Any]] = None,
+        filters: Optional[Dict[str, Any]] = None
+    ) -> int:
         """
         Count rows (records) matching a query in MariaDB
 
@@ -674,7 +683,7 @@ class MariaDBDatabaseService(DatabaseService):
                         filters = query
 
             where_sql = ""
-            params = []
+            params: List[Union[str, int]] = []
 
             # Use filters if provided (preferred for MariaDB)
             if filters:

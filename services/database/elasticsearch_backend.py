@@ -4,8 +4,10 @@ Elasticsearch Database Backend
 Implementation of DatabaseService interface using Elasticsearch.
 """
 from typing import List, Optional, Dict, Any
-from datetime import datetime
-from elasticsearch import Elasticsearch, ConnectionError as ESConnectionError, NotFoundError, ConflictError
+from elasticsearch import (
+    Elasticsearch, ConnectionError as ESConnectionError,
+    NotFoundError, ConflictError
+)
 from config import Config
 from .service import DatabaseService
 
@@ -107,7 +109,7 @@ class ElasticsearchDatabaseService(DatabaseService):
             return False
 
         try:
-            return self.es.indices.exists(index=collection_name)
+            return bool(self.es.indices.exists(index=collection_name))
         except Exception:
             return False
 
@@ -136,7 +138,12 @@ class ElasticsearchDatabaseService(DatabaseService):
             print(f"Error creating document: {e}")
             return False
 
-    def insert_record(self, collection_name: str, record: Dict[str, Any], record_id: Optional[str] = None) -> Optional[str]:
+    def insert_record(
+        self,
+        collection_name: str,
+        record: Dict[str, Any],
+        record_id: Optional[str] = None
+    ) -> Optional[str]:
         """
         Index a document (record) in Elasticsearch (create or update)
 
@@ -218,7 +225,7 @@ class ElasticsearchDatabaseService(DatabaseService):
 
             # Build query
             if query or filters:
-                bool_query = {"bool": {}}
+                bool_query: Dict[str, Any] = {"bool": {}}
 
                 if query:
                     bool_query["bool"]["must"] = [query]
@@ -287,8 +294,12 @@ class ElasticsearchDatabaseService(DatabaseService):
             print(f"Error deleting document: {e}")
             return False
 
-    def count_records(self, collection_name: str, query: Optional[Dict[str, Any]] = None,
-                     filters: Optional[Dict[str, Any]] = None) -> int:
+    def count_records(
+        self,
+        collection_name: str,
+        query: Optional[Dict[str, Any]] = None,
+        filters: Optional[Dict[str, Any]] = None
+    ) -> int:
         """
         Count documents (records) matching a query in Elasticsearch
 

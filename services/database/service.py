@@ -1,12 +1,11 @@
 """
 Database Service - Abstract Interface
 
-Provides a unified interface for database operations, allowing easy switching between backends.
-Currently supports Elasticsearch and MariaDB.
+Provides a unified interface for database operations, allowing easy switching
+between backends. Currently supports Elasticsearch and MariaDB.
 """
 from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
-from datetime import datetime
 
 
 class DatabaseService(ABC):
@@ -82,7 +81,12 @@ class DatabaseService(ABC):
         pass
 
     @abstractmethod
-    def insert_record(self, collection_name: str, record: Dict[str, Any], record_id: Optional[str] = None) -> Optional[str]:
+    def insert_record(
+        self,
+        collection_name: str,
+        record: Dict[str, Any],
+        record_id: Optional[str] = None
+    ) -> Optional[str]:
         """
         Insert a record (create or update)
 
@@ -166,8 +170,12 @@ class DatabaseService(ABC):
         pass
 
     @abstractmethod
-    def count_records(self, collection_name: str, query: Optional[Dict[str, Any]] = None,
-                     filters: Optional[Dict[str, Any]] = None) -> int:
+    def count_records(
+        self,
+        collection_name: str,
+        query: Optional[Dict[str, Any]] = None,
+        filters: Optional[Dict[str, Any]] = None
+    ) -> int:
         """
         Count records matching a query
 
