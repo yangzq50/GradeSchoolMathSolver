@@ -108,7 +108,7 @@ class MariaDBDatabaseService(DatabaseService):
             if 'columns' in schema:
                 # Use explicit column definitions
                 columns_def = schema['columns']
-                columns_sql = '%s'.join([f"`{col}` {typedef}" for col, typedef in columns_def.items()])
+                columns_sql = ', '.join([f"`{col}` {typedef}" for col, typedef in columns_def.items()])
 
                 # Add indexes if specified
                 indexes_sql = ""
@@ -390,7 +390,7 @@ class MariaDBDatabaseService(DatabaseService):
                             direction = "DESC" if order == "desc" else "ASC"
                             sort_parts.append(f"JSON_EXTRACT(data, '$.{field}') {direction}")
                     if sort_parts:
-                        order_sql = f"ORDER BY {'%s'.join(sort_parts)}"
+                        order_sql = f"ORDER BY {', '.join(sort_parts)}"
 
                 select_query = f"""
                 SELECT id, data FROM `{collection_name}`
@@ -432,7 +432,7 @@ class MariaDBDatabaseService(DatabaseService):
                             direction = "DESC" if order == "desc" else "ASC"
                             sort_parts.append(f"`{field}` {direction}")
                     if sort_parts:
-                        order_sql = f"ORDER BY {'%s'.join(sort_parts)}"
+                        order_sql = f"ORDER BY {', '.join(sort_parts)}"
 
                 select_query = f"""
                 SELECT * FROM `{collection_name}`
@@ -542,7 +542,7 @@ class MariaDBDatabaseService(DatabaseService):
                 params.append(record_id)
                 update_query = f"""
                 UPDATE `{collection_name}`
-                SET {'%s'.join(set_clauses)}
+                SET {', '.join(set_clauses)}
                 WHERE `{pk_col}` = %s
                 """
                 cursor.execute(update_query, params)
