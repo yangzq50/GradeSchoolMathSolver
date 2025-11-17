@@ -42,7 +42,7 @@ class UserAnswer(BaseModel):
         username: User's unique identifier
         question: Question text that was answered
         equation: Mathematical equation that was answered
-        user_answer: User's submitted answer
+        user_answer: User's submitted answer (None if LLM failed to answer)
         correct_answer: Correct answer for validation
         is_correct: Whether the user's answer was correct
         category: Question category
@@ -51,8 +51,8 @@ class UserAnswer(BaseModel):
     username: str
     question: str
     equation: str
-    user_answer: float
-    correct_answer: float
+    user_answer: Optional[int]
+    correct_answer: int
     is_correct: bool
     category: str
     timestamp: datetime
@@ -87,7 +87,7 @@ class QuizHistory(BaseModel):
         username: User's unique identifier
         question: Question text
         user_equation: Equation used for the question
-        user_answer: User's submitted answer
+        user_answer: User's submitted answer (None if LLM failed to answer)
         correct_answer: Correct answer
         is_correct: Whether the answer was correct
         category: Question category
@@ -96,8 +96,8 @@ class QuizHistory(BaseModel):
     username: str
     question: str
     user_equation: str
-    user_answer: float
-    correct_answer: float
+    user_answer: Optional[int]
+    correct_answer: int
     is_correct: bool
     category: str
     timestamp: datetime
@@ -193,7 +193,7 @@ class ImmersiveParticipant(BaseModel):
     participant_id: str
     participant_type: ParticipantType
     order: int = Field(ge=0)
-    answers: List[Optional[float]] = []
+    answers: List[Optional[int]] = []
     scores: List[bool] = []
     total_score: float = 0.0
     has_answered_current: bool = False
@@ -238,7 +238,7 @@ class ImmersiveExamAnswer(BaseModel):
     exam_id: str
     participant_id: str
     question_index: int = Field(ge=0)
-    answer: float
+    answer: int
 
 
 class ImmersiveExamStatus(BaseModel):
@@ -279,14 +279,14 @@ class TeacherFeedback(BaseModel):
         equation: Mathematical equation that was answered
         question: Question text
         correct_answer: Correct answer
-        user_answer: User's incorrect answer
+        user_answer: User's incorrect answer (None if LLM failed to answer)
         feedback: Brief feedback message
         explanation: Detailed step-by-step explanation
     """
     equation: str
     question: str
-    correct_answer: float
-    user_answer: float
+    correct_answer: int
+    user_answer: Optional[int]
     feedback: str
     explanation: str
 
@@ -300,7 +300,7 @@ class MistakeReview(BaseModel):
         username: User who made the mistake
         question: Question text
         equation: Mathematical equation
-        user_answer: User's incorrect answer
+        user_answer: User's incorrect answer (None if LLM failed to answer)
         correct_answer: Correct answer
         category: Question category
         timestamp: When the mistake was made
@@ -310,8 +310,8 @@ class MistakeReview(BaseModel):
     username: str
     question: str
     equation: str
-    user_answer: float
-    correct_answer: float
+    user_answer: Optional[int]
+    correct_answer: int
     category: str
     timestamp: datetime
     reviewed: bool
