@@ -5,6 +5,7 @@ Manages reviewing past mistakes for users
 import sys
 import os
 from typing import Optional, List
+from datetime import datetime
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -19,6 +20,21 @@ class MistakeReviewService:
     def __init__(self):
         self.account_service = AccountService()
 
+    def _build_filters_from_query(self, query):
+        """Convert Elasticsearch-style query to simple filters for MariaDB compatibility"""
+        if not query or 'bool' not in query:
+            return None
+
+        filters = {}
+        must_clauses = query.get('bool', {}).get('must', [])
+
+        for clause in must_clauses:
+            if 'term' in clause:
+                for field, value in clause['term'].items():
+                    filters[field] = value
+
+        return filters if filters else None
+
     def get_next_mistake(self, username: str) -> Optional[MistakeReview]:
         """
         Get the next unreviewed mistake for a user (FIFO order)
@@ -29,55 +45,101 @@ class MistakeReviewService:
         Returns:
             MistakeReview object or None if no unreviewed mistakes exist
         """
-        # Get the oldest unreviewed incorrect answer
-        from services.account.service import AnswerHistory
-
-        mistake = self.account_service.session.query(AnswerHistory)\
-            .filter_by(username=username, is_correct=False, reviewed=False)\
-            .order_by(AnswerHistory.timestamp.asc())\
-            .first()
-
-        if not mistake:
+        if not self.account_service._is_connected():
             return None
 
-        return MistakeReview(
-            mistake_id=mistake.id,
-            username=mistake.username,
-            question=mistake.question,
-            equation=mistake.equation,
-            user_answer=mistake.user_answer,
-            correct_answer=mistake.correct_answer,
-            category=mistake.category,
-            timestamp=mistake.timestamp,
-            reviewed=mistake.reviewed
-        )
+        try:
+            # Query for oldest unreviewed incorrect answer
+            query = {
+                "bool": {
+                    "must": [
+                        {"term": {"username": username}},
+                        {"term": {"is_correct": False}},
+                        {"term": {"reviewed": False}}
+                    ]
+                }
+            }
+            sort = [{"timestamp": {"order": "asc"}}]
 
-    def mark_as_reviewed(self, username: str, mistake_id: int) -> bool:
+            # Convert ES query to filters for MariaDB
+            filters = self._build_filters_from_query(query)
+
+            hits = self.account_service.db.search_records(
+                collection_name=self.account_service.answers_index,
+                query=None,  # Don't pass ES-style query to avoid conversion errors
+                filters=filters,
+                sort=sort,
+                limit=1
+            )
+
+            if not hits:
+                return None
+
+            hit = hits[0]
+            source = hit['_source']
+
+            # Handle timestamp - MariaDB returns datetime objects, ES returns strings
+            timestamp_value = source['timestamp']
+            if isinstance(timestamp_value, datetime):
+                timestamp = timestamp_value
+            else:
+                timestamp = datetime.fromisoformat(timestamp_value.replace('Z', '+00:00'))
+
+            return MistakeReview(
+                mistake_id=hit['_id'],
+                username=source['username'],
+                question=source['question'],
+                equation=source['equation'],
+                user_answer=source.get('user_answer'),
+                correct_answer=source['correct_answer'],
+                category=source['category'],
+                timestamp=timestamp,
+                reviewed=source.get('reviewed', False)
+            )
+        except Exception as e:
+            print(f"Error getting next mistake: {e}")
+            return None
+
+    def mark_as_reviewed(self, username: str, mistake_id: str, refresh: bool = False) -> bool:
         """
         Mark a mistake as reviewed
 
         Args:
             username: Username
             mistake_id: ID of the mistake to mark as reviewed
+            refresh: Whether to refresh the index immediately (for testing)
 
         Returns:
             True if successful, False otherwise
         """
+        if not self.account_service._is_connected():
+            return False
+
         try:
-            from services.account.service import AnswerHistory
+            # Get the document first to verify username matches
+            doc = self.account_service.db.get_record(
+                self.account_service.answers_index,
+                mistake_id
+            )
 
-            mistake = self.account_service.session.query(AnswerHistory)\
-                .filter_by(id=mistake_id, username=username)\
-                .first()
-
-            if not mistake:
+            if not doc or doc['username'] != username:
                 return False
 
-            mistake.reviewed = True
-            self.account_service.session.commit()
-            return True
+            # Update the document
+            success = self.account_service.db.update_record(
+                self.account_service.answers_index,
+                mistake_id,
+                {"reviewed": True}
+            )
+
+            # Refresh index if requested (useful for testing)
+            if refresh and success:
+                from services.database.elasticsearch_backend import ElasticsearchDatabaseService
+                if isinstance(self.account_service.db, ElasticsearchDatabaseService):
+                    self.account_service.db.refresh_index(self.account_service.answers_index)
+
+            return success
         except Exception as e:
-            self.account_service.session.rollback()
             print(f"Error marking mistake as reviewed: {e}")
             return False
 
@@ -91,11 +153,31 @@ class MistakeReviewService:
         Returns:
             Count of unreviewed mistakes
         """
-        from services.account.service import AnswerHistory
+        if not self.account_service._is_connected():
+            return 0
 
-        return self.account_service.session.query(AnswerHistory)\
-            .filter_by(username=username, is_correct=False, reviewed=False)\
-            .count()
+        try:
+            query = {
+                "bool": {
+                    "must": [
+                        {"term": {"username": username}},
+                        {"term": {"is_correct": False}},
+                        {"term": {"reviewed": False}}
+                    ]
+                }
+            }
+
+            # Convert ES query to filters for MariaDB
+            filters = self._build_filters_from_query(query)
+
+            return self.account_service.db.count_records(
+                self.account_service.answers_index,
+                query=None,  # Don't pass ES-style query to avoid conversion errors
+                filters=filters
+            )
+        except Exception as e:
+            print(f"Error getting unreviewed count: {e}")
+            return 0
 
     def get_all_unreviewed_mistakes(self, username: str, limit: int = 100) -> List[MistakeReview]:
         """
@@ -108,28 +190,58 @@ class MistakeReviewService:
         Returns:
             List of MistakeReview objects
         """
-        from services.account.service import AnswerHistory
+        if not self.account_service._is_connected():
+            return []
 
-        mistakes = self.account_service.session.query(AnswerHistory)\
-            .filter_by(username=username, is_correct=False, reviewed=False)\
-            .order_by(AnswerHistory.timestamp.asc())\
-            .limit(limit)\
-            .all()
+        try:
+            query = {
+                "bool": {
+                    "must": [
+                        {"term": {"username": username}},
+                        {"term": {"is_correct": False}},
+                        {"term": {"reviewed": False}}
+                    ]
+                }
+            }
+            sort = [{"timestamp": {"order": "asc"}}]
 
-        return [
-            MistakeReview(
-                mistake_id=m.id,
-                username=m.username,
-                question=m.question,
-                equation=m.equation,
-                user_answer=m.user_answer,
-                correct_answer=m.correct_answer,
-                category=m.category,
-                timestamp=m.timestamp,
-                reviewed=m.reviewed
+            # Convert ES query to filters for MariaDB
+            filters = self._build_filters_from_query(query)
+
+            hits = self.account_service.db.search_records(
+                collection_name=self.account_service.answers_index,
+                query=None,  # Don't pass ES-style query to avoid conversion errors
+                filters=filters,
+                sort=sort,
+                limit=limit
             )
-            for m in mistakes
-        ]
+
+            mistakes = []
+            for hit in hits:
+                source = hit['_source']
+                # Handle timestamp - MariaDB returns datetime objects, ES returns strings
+                timestamp_value = source['timestamp']
+                if isinstance(timestamp_value, datetime):
+                    timestamp = timestamp_value
+                else:
+                    timestamp = datetime.fromisoformat(timestamp_value.replace('Z', '+00:00'))
+
+                mistakes.append(MistakeReview(
+                    mistake_id=hit['_id'],
+                    username=source['username'],
+                    question=source['question'],
+                    equation=source['equation'],
+                    user_answer=source.get('user_answer'),
+                    correct_answer=source['correct_answer'],
+                    category=source['category'],
+                    timestamp=timestamp,
+                    reviewed=source.get('reviewed', False)
+                ))
+
+            return mistakes
+        except Exception as e:
+            print(f"Error getting all unreviewed mistakes: {e}")
+            return []
 
 
 if __name__ == "__main__":

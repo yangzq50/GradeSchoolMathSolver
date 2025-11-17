@@ -52,18 +52,23 @@ def test_classification():
 def test_account_service():
     """Test account service"""
     from services.account import AccountService
+    import pytest
     import random
 
     service = AccountService()
+
+    # Skip if database is not available
+    if not service._is_connected():
+        pytest.skip("Database not available")
 
     # Create test user with unique name
     username = f"test_user_pytest_{random.randint(1000, 9999)}"
     service.create_user(username)
 
-    # Record answers
-    service.record_answer(username, "Test Q1", "2 + 2", 4, 4, "addition")
-    service.record_answer(username, "Test Q2", "5 - 3", 2, 2, "subtraction")
-    service.record_answer(username, "Test Q3", "3 * 4", 11, 12, "multiplication")
+    # Record answers with refresh for testing
+    service.record_answer(username, "Test Q1", "2 + 2", 4, 4, "addition", refresh=True)
+    service.record_answer(username, "Test Q2", "5 - 3", 2, 2, "subtraction", refresh=True)
+    service.record_answer(username, "Test Q3", "3 * 4", 11, 12, "multiplication", refresh=True)
 
     # Get stats
     stats = service.get_user_stats(username)

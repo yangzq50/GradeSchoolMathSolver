@@ -1,42 +1,18 @@
 """
 Account Service
-Manages user accounts and statistics using SQLite with proper error handling and validation
+Manages user accounts and statistics using centralized database service
 """
-import os
 from datetime import datetime
-from typing import List, Optional
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime
-from sqlalchemy.orm import declarative_base, sessionmaker
-from sqlalchemy.exc import SQLAlchemyError
+from typing import List, Optional, Dict, Any
 from config import Config
 from models import UserStats
-
-Base = declarative_base()
-
-
-class User(Base):  # type: ignore[valid-type,misc]
-    """User account table"""
-    __tablename__ = 'users'
-
-    id = Column(Integer, primary_key=True)
-    username = Column(String(100), unique=True, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-
-class AnswerHistory(Base):  # type: ignore[valid-type,misc]
-    """Answer history table"""
-    __tablename__ = 'answer_history'
-
-    id = Column(Integer, primary_key=True)
-    username = Column(String(100), nullable=False)
-    question = Column(String(500), nullable=False)
-    equation = Column(String(200), nullable=False)
-    user_answer = Column(Integer, nullable=True)
-    correct_answer = Column(Integer, nullable=False)
-    is_correct = Column(Boolean, nullable=False)
-    category = Column(String(50), nullable=False)
-    timestamp = Column(DateTime, default=datetime.utcnow)
-    reviewed = Column(Boolean, default=False, nullable=False)
+from services.database import get_database_service
+from services.database.schemas import (
+    UserRecord,
+    AnswerHistoryRecord,
+    get_user_schema_for_backend,
+    get_answer_history_schema_for_backend
+)
 
 
 class AccountService:
@@ -47,32 +23,48 @@ class AccountService:
     - User creation and management
     - Answer history tracking
     - Performance statistics calculation
-    - Database connection management
+    - Database connection management through DatabaseService
 
     Attributes:
         config: Configuration object
-        engine: SQLAlchemy database engine
-        session: SQLAlchemy database session
+        db: DatabaseService instance for data operations
+        users_index: Name of the users index
+        answers_index: Name of the answers index
     """
 
     def __init__(self):
         self.config = Config()
-        self._setup_database()
+        self.users_index = "users"
+        self.answers_index = self.config.ELASTICSEARCH_INDEX
+        self.db = get_database_service()
+        self._create_collections()
 
-    def _setup_database(self):
-        """Initialize database connection and create tables"""
-        # Ensure data directory exists
-        db_dir = os.path.dirname(self.config.DATABASE_PATH)
-        if db_dir and not os.path.exists(db_dir):
-            os.makedirs(db_dir)
+    def _is_connected(self) -> bool:
+        """
+        Check if database is connected
 
-        # Create engine and tables
-        self.engine = create_engine(f'sqlite:///{self.config.DATABASE_PATH}')
-        Base.metadata.create_all(self.engine)
+        Returns:
+            bool: True if connected, False otherwise
+        """
+        return self.db.is_connected()
 
-        # Create session maker
-        Session = sessionmaker(bind=self.engine)
-        self.session = Session()
+    def _create_collections(self):
+        """
+        Create database collections with appropriate mappings
+
+        Defines schema for efficient storage and retrieval of user data and answer history.
+        Uses centralized schema definitions to support multiple database backends.
+        """
+        # Determine which backend is being used
+        backend = self.config.DATABASE_BACKEND if hasattr(self.config, 'DATABASE_BACKEND') else 'elasticsearch'
+
+        # Get backend-specific schemas
+        users_schema = get_user_schema_for_backend(backend)
+        answers_schema = get_answer_history_schema_for_backend(backend)
+
+        # Create collections using database service
+        self.db.create_collection(self.users_index, users_schema)
+        self.db.create_collection(self.answers_index, answers_schema)
 
     def _validate_username(self, username: str) -> bool:
         """
@@ -105,25 +97,21 @@ class AccountService:
             print(f"Invalid username format: {username}")
             return False
 
-        try:
-            existing = self.session.query(User).filter_by(username=username).first()
-            if existing:
-                return False
-
-            user = User(username=username)
-            self.session.add(user)
-            self.session.commit()
-            return True
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            print(f"Database error creating user: {e}")
+        if not self._is_connected():
+            print("Database not connected")
             return False
+
+        try:
+            # Create user record using schema
+            user_record = UserRecord.create_new(username)
+
+            # Use create_record() which ensures it fails if user exists
+            return self.db.create_record(self.users_index, username, user_record.to_dict())
         except Exception as e:
-            self.session.rollback()
             print(f"Unexpected error creating user: {e}")
             return False
 
-    def get_user(self, username: str) -> Optional[User]:
+    def get_user(self, username: str) -> Optional[Dict[str, Any]]:
         """
         Get user by username
 
@@ -131,15 +119,15 @@ class AccountService:
             username: Username to retrieve
 
         Returns:
-            User object or None if not found
+            User document dict or None if not found
         """
         if not self._validate_username(username):
             return None
-        try:
-            return self.session.query(User).filter_by(username=username).first()
-        except SQLAlchemyError as e:
-            print(f"Database error retrieving user: {e}")
+
+        if not self._is_connected():
             return None
+
+        return self.db.get_record(self.users_index, username)
 
     def list_users(self) -> List[str]:
         """
@@ -148,16 +136,23 @@ class AccountService:
         Returns:
             List of usernames, empty list on error
         """
+        if not self._is_connected():
+            return []
+
         try:
-            users = self.session.query(User).all()
-            return [user.username for user in users]
-        except SQLAlchemyError as e:
-            print(f"Database error listing users: {e}")
+            results = self.db.search_records(
+                collection_name=self.users_index,
+                limit=1000
+            )
+            users = [hit['_source']['username'] for hit in results]
+            return users
+        except Exception as e:
+            print(f"Error listing users: {e}")
             return []
 
     def record_answer(self, username: str, question: str, equation: str,
                       user_answer: Optional[int], correct_answer: int,
-                      category: str) -> bool:
+                      category: str, refresh: bool = False) -> bool:
         """
         Record a user's answer with validation
 
@@ -168,6 +163,7 @@ class AccountService:
             user_answer: User's answer
             correct_answer: Correct answer
             category: Question category (max 50 chars)
+            refresh: Whether to refresh the index immediately (for testing)
 
         Returns:
             True if successful, False otherwise
@@ -186,32 +182,36 @@ class AccountService:
             print("Invalid category length")
             return False
 
+        if not self._is_connected():
+            print("Database not connected")
+            return False
+
         try:
             # Ensure user exists
             if not self.get_user(username):
                 self.create_user(username)
 
-            is_correct = user_answer is not None and user_answer == correct_answer
-
-            answer = AnswerHistory(
+            # Create answer history record using schema
+            answer_record = AnswerHistoryRecord.create_new(
                 username=username,
                 question=question,
                 equation=equation,
                 user_answer=user_answer,
                 correct_answer=correct_answer,
-                is_correct=is_correct,
-                category=category
+                category=category,
+                reviewed=False
             )
 
-            self.session.add(answer)
-            self.session.commit()
-            return True
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            print(f"Database error recording answer: {e}")
-            return False
+            doc_id = self.db.insert_record(self.answers_index, answer_record.to_dict())
+
+            # Refresh index if requested (useful for testing)
+            if refresh and doc_id:
+                from services.database.elasticsearch_backend import ElasticsearchDatabaseService
+                if isinstance(self.db, ElasticsearchDatabaseService):
+                    self.db.refresh_index(self.answers_index)
+
+            return doc_id is not None
         except Exception as e:
-            self.session.rollback()
             print(f"Unexpected error recording answer: {e}")
             return False
 
@@ -228,13 +228,24 @@ class AccountService:
         if not self._validate_username(username):
             return None
 
+        if not self._is_connected():
+            return None
+
         try:
             user = self.get_user(username)
             if not user:
                 return None
 
-            # Get all answers
-            all_answers = self.session.query(AnswerHistory).filter_by(username=username).all()
+            # Get all answers for the user
+            query = {"term": {"username": username}}
+            sort = [{"timestamp": {"order": "desc"}}]
+
+            all_answers = self.db.search_records(
+                collection_name=self.answers_index,
+                query=query,
+                sort=sort,
+                limit=10000
+            )
 
             if not all_answers:
                 return UserStats(
@@ -246,17 +257,12 @@ class AccountService:
                 )
 
             total_questions = len(all_answers)
-            correct_answers = sum(1 for a in all_answers if a.is_correct)
+            correct_answers = sum(1 for hit in all_answers if hit['_source'].get('is_correct', False))
             overall_correctness = (correct_answers / total_questions) * 100 if total_questions > 0 else 0.0
 
             # Get recent 100 answers
-            recent_answers = self.session.query(AnswerHistory)\
-                .filter_by(username=username)\
-                .order_by(AnswerHistory.timestamp.desc())\
-                .limit(100)\
-                .all()
-
-            recent_correct = sum(1 for a in recent_answers if a.is_correct)
+            recent_answers = all_answers[:100]
+            recent_correct = sum(1 for hit in recent_answers if hit['_source'].get('is_correct', False))
             recent_100_score = (recent_correct / len(recent_answers)) * 100 if recent_answers else 0.0
 
             return UserStats(
@@ -266,11 +272,11 @@ class AccountService:
                 overall_correctness=round(overall_correctness, 2),
                 recent_100_score=round(recent_100_score, 2)
             )
-        except SQLAlchemyError as e:
-            print(f"Database error getting user stats: {e}")
+        except Exception as e:
+            print(f"Error getting user stats: {e}")
             return None
 
-    def get_answer_history(self, username: str, limit: int = 100) -> List[AnswerHistory]:
+    def get_answer_history(self, username: str, limit: int = 100) -> List[Dict[str, Any]]:
         """
         Get answer history for a user
 
@@ -279,22 +285,47 @@ class AccountService:
             limit: Maximum number of records to return (1-1000)
 
         Returns:
-            List of AnswerHistory objects, empty list on error
+            List of answer history dicts, empty list on error
         """
         if not self._validate_username(username):
+            return []
+
+        if not self._is_connected():
             return []
 
         # Validate limit
         limit = max(1, min(limit, 1000))
 
         try:
-            return self.session.query(AnswerHistory)\
-                .filter_by(username=username)\
-                .order_by(AnswerHistory.timestamp.desc())\
-                .limit(limit)\
-                .all()
-        except SQLAlchemyError as e:
-            print(f"Database error getting answer history: {e}")
+            query = {"term": {"username": username}}
+            sort = [{"timestamp": {"order": "desc"}}]
+
+            hits = self.db.search_records(
+                collection_name=self.answers_index,
+                query=query,
+                sort=sort,
+                limit=limit
+            )
+
+            # Convert to list of dicts with id included and timestamp parsed
+            results = []
+            for hit in hits:
+                answer = hit['_source'].copy()
+                answer['id'] = hit['_id']
+
+                # Convert timestamp string to datetime object for template compatibility
+                if 'timestamp' in answer and isinstance(answer['timestamp'], str):
+                    try:
+                        answer['timestamp'] = datetime.fromisoformat(answer['timestamp'].replace('Z', '+00:00'))
+                    except (ValueError, AttributeError):
+                        # If parsing fails, keep as string or use current time
+                        answer['timestamp'] = datetime.utcnow()
+
+                results.append(answer)
+
+            return results
+        except Exception as e:
+            print(f"Error getting answer history: {e}")
             return []
 
 

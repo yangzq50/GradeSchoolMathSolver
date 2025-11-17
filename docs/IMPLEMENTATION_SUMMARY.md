@@ -48,13 +48,13 @@ All 9 components from the original specification have been implemented:
 ### 3. Account Service ✅
 - **Status**: Fully Implemented
 - **File**: `services/account/service.py`
-- **Database**: SQLite (`data/math_solver.db`)
+- **Storage**: Elasticsearch (users and quiz_history indices)
 - **Features**:
   - User creation and management
   - Answer history with timestamps
   - Overall correctness calculation
   - Recent 100 questions score
-  - Efficient queries with SQLAlchemy
+  - Efficient queries with Elasticsearch
   - Tested and working
 
 ### 4. Quiz History Service ✅
@@ -187,7 +187,7 @@ Beyond the core requirements, the following have been provided:
 - **AI**: Docker Model Runner (or compatible OpenAI-style API like Ollama)
 - **Model**: LLaMA 3.2 or similar
 - **Search**: Elasticsearch 9.2+
-- **Database**: SQLite (SQLAlchemy)
+- **Storage**: Elasticsearch (unified storage)
 - **Deployment**: Docker + Docker Compose
 
 ---
@@ -296,7 +296,7 @@ mgmt.create_agent(agent)
 ### Performance ✅
 - Fast question generation (1-3s)
 - Quick classification (<0.1s)
-- Efficient database queries (<0.1s)
+- Efficient Elasticsearch queries (<0.1s)
 - Reasonable AI response times (2-5s)
 - Scales to hundreds of users
 
