@@ -350,7 +350,7 @@ class MariaDBDatabaseService(DatabaseService):
 
         Args:
             collection_name: Name of the table
-            query: Search query (for column-based tables)
+            query: Search query (Elasticsearch-style or simple key-value)
             filters: Filter conditions
             sort: Sort specifications
             limit: Maximum number of results
@@ -369,6 +369,33 @@ class MariaDBDatabaseService(DatabaseService):
             cursor.execute(f"DESCRIBE `{collection_name}`")
             columns_info = cursor.fetchall()
             columns = {row[0] for row in columns_info}
+
+            # Parse Elasticsearch-style query to extract filters
+            # Handle {"term": {"field": "value"}}, {"match": {"field": "value"}}, and {"bool": {"must": [...]}} formats
+            if query and not filters:
+                filters = {}
+                if isinstance(query, dict):
+                    if "term" in query and isinstance(query["term"], dict):
+                        # Extract field-value pairs from term query
+                        filters.update(query["term"])
+                    elif "match" in query and isinstance(query["match"], dict):
+                        # Extract field-value pairs from match query
+                        filters.update(query["match"])
+                    elif "bool" in query and isinstance(query["bool"], dict):
+                        # Handle bool queries with must clauses
+                        bool_query = query["bool"]
+                        must_clauses = bool_query.get("must", [])
+                        for clause in must_clauses:
+                            if isinstance(clause, dict):
+                                if "term" in clause:
+                                    filters.update(clause["term"])
+                                elif "match" in clause:
+                                    filters.update(clause["match"])
+                        # Note: MariaDB doesn't support full-text search like Elasticsearch
+                        # so we ignore "should" clauses and just use "must" for filtering
+                    else:
+                        # Assume it's already a simple key-value dict
+                        filters = query
 
             if 'data' in columns:
                 # JSON-based storage
@@ -603,7 +630,7 @@ class MariaDBDatabaseService(DatabaseService):
 
         Args:
             collection_name: Name of the table
-            query: Search query (ignored for MariaDB)
+            query: Search query (Elasticsearch-style or simple key-value)
             filters: Simple filters (key-value pairs for WHERE clause)
 
         Returns:
@@ -618,6 +645,33 @@ class MariaDBDatabaseService(DatabaseService):
             # Check if table uses explicit columns or JSON storage
             cursor.execute(f"DESCRIBE `{collection_name}`")
             columns = {row[0] for row in cursor.fetchall()}
+
+            # Parse Elasticsearch-style query to extract filters
+            # Handle {"term": {"field": "value"}}, {"match": {"field": "value"}}, and {"bool": {"must": [...]}} formats
+            if query and not filters:
+                filters = {}
+                if isinstance(query, dict):
+                    if "term" in query and isinstance(query["term"], dict):
+                        # Extract field-value pairs from term query
+                        filters.update(query["term"])
+                    elif "match" in query and isinstance(query["match"], dict):
+                        # Extract field-value pairs from match query
+                        filters.update(query["match"])
+                    elif "bool" in query and isinstance(query["bool"], dict):
+                        # Handle bool queries with must clauses
+                        bool_query = query["bool"]
+                        must_clauses = bool_query.get("must", [])
+                        for clause in must_clauses:
+                            if isinstance(clause, dict):
+                                if "term" in clause:
+                                    filters.update(clause["term"])
+                                elif "match" in clause:
+                                    filters.update(clause["match"])
+                        # Note: MariaDB doesn't support full-text search like Elasticsearch
+                        # so we ignore "should" clauses and just use "must" for filtering
+                    else:
+                        # Assume it's already a simple key-value dict
+                        filters = query
 
             where_sql = ""
             params = []
@@ -637,22 +691,6 @@ class MariaDBDatabaseService(DatabaseService):
                     for field, value in filters.items():
                         where_clauses.append(f"JSON_EXTRACT(data, '$.{field}') = %s")
                         params.append(json.dumps(value) if not isinstance(value, str) else value)
-                    where_sql = f"WHERE {' AND '.join(where_clauses)}"
-            elif query:
-                # Fall back to query if no filters
-                if 'data' in columns:
-                    # JSON-based storage
-                    where_clauses = []
-                    for field, value in query.items():
-                        where_clauses.append(f"JSON_EXTRACT(data, '$.{field}') = %s")
-                        params.append(json.dumps(value) if not isinstance(value, str) else value)
-                    where_sql = f"WHERE {' AND '.join(where_clauses)}"
-                else:
-                    # Column-based storage
-                    where_clauses = []
-                    for field, value in query.items():
-                        where_clauses.append(f"`{field}` = %s")
-                        params.append(value)
                     where_sql = f"WHERE {' AND '.join(where_clauses)}"
 
             count_query = f"SELECT COUNT(*) as count FROM `{collection_name}` {where_sql}"
