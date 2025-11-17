@@ -2,10 +2,13 @@
 MariaDB Database Backend
 
 Implementation of DatabaseService interface using MariaDB 11.8 LTS.
-Uses mysql-connector-python for database access.
+Uses MySQL Connector/Python for database access (MariaDB is MySQL-compatible).
+
+This backend creates proper relational tables with typed columns
+based on schema definitions, providing better performance and
+type safety compared to generic JSON storage.
 """
 from typing import List, Optional, Dict, Any
-from datetime import datetime
 import json
 import mysql.connector
 from mysql.connector import Error as MySQLError
@@ -74,16 +77,16 @@ class MariaDBDatabaseService(DatabaseService):
             return False
         try:
             return self.connection.is_connected()
-        except:
+        except Exception:
             return False
 
     def create_collection(self, collection_name: str, schema: Dict[str, Any]) -> bool:
         """
-        Create a MariaDB table (collection)
+        Create a MariaDB table (collection) with proper column types
 
         Args:
             collection_name: Name of the table to create
-            schema: Schema definition (simplified - columns and types)
+            schema: Schema definition with columns and indexes
 
         Returns:
             bool: True if successful, False otherwise
@@ -100,17 +103,34 @@ class MariaDBDatabaseService(DatabaseService):
                 cursor.close()
                 return True  # Table already exists
 
-            # Create table with generic schema
-            # Default schema: id (VARCHAR PRIMARY KEY), data (JSON), created_at (TIMESTAMP)
-            create_table_query = f"""
-            CREATE TABLE `{collection_name}` (
-                id VARCHAR(255) PRIMARY KEY,
-                data JSON NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                INDEX idx_created (created_at)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-            """
+            # Extract schema information
+            # For MariaDB, schema should have 'columns' and 'indexes' keys
+            if 'columns' in schema:
+                # Use explicit column definitions
+                columns_def = schema['columns']
+                columns_sql = '%s'.join([f"`{col}` {typedef}" for col, typedef in columns_def.items()])
+
+                # Add indexes if specified
+                indexes_sql = ""
+                if 'indexes' in schema and schema['indexes']:
+                    indexes_sql = ", " + ", ".join(schema['indexes'])
+
+                create_table_query = f"""
+                CREATE TABLE `{collection_name}` (
+                    {columns_sql}{indexes_sql}
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """
+            else:
+                # Fallback to generic JSON schema (for backward compatibility)
+                create_table_query = f"""
+                CREATE TABLE `{collection_name}` (
+                    id VARCHAR(255) PRIMARY KEY,
+                    data JSON NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_created (created_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """
 
             cursor.execute(create_table_query)
             cursor.close()
@@ -140,7 +160,7 @@ class MariaDBDatabaseService(DatabaseService):
             exists = cursor.fetchone() is not None
             cursor.close()
             return exists
-        except:
+        except Exception:
             return False
 
     def create_record(self, collection_name: str, record_id: str, record: Dict[str, Any]) -> bool:
@@ -150,7 +170,7 @@ class MariaDBDatabaseService(DatabaseService):
         Args:
             collection_name: Name of the table
             record_id: Unique identifier for the row
-            record: Record data (stored as JSON)
+            record: Record data
 
         Returns:
             bool: True if successful, False if record already exists or error
@@ -161,18 +181,39 @@ class MariaDBDatabaseService(DatabaseService):
         try:
             cursor = self.connection.cursor()
 
-            # Try to insert - will fail if ID exists
-            insert_query = f"""
-            INSERT INTO `{collection_name}` (id, data)
-            VALUES (%s, %s)
-            """
-            cursor.execute(insert_query, (record_id, json.dumps(record)))
+            # Check if table uses explicit columns or JSON storage
+            cursor.execute(f"DESCRIBE `{collection_name}`")
+            columns = {row[0] for row in cursor.fetchall()}
+
+            if 'data' in columns:
+                # JSON-based storage
+                insert_query = f"""
+                INSERT INTO `{collection_name}` (id, data)
+                VALUES (%s, %s)
+                """
+                cursor.execute(insert_query, (record_id, json.dumps(record)))
+            else:
+                # Column-based storage
+                # Determine primary key column
+                if collection_name == 'users':
+                    pk_col = 'username'
+                    record_with_id = record.copy()
+                else:
+                    pk_col = 'record_id'
+                    record_with_id = record.copy()
+                    record_with_id[pk_col] = record_id
+
+                cols = ', '.join([f"`{k}`" for k in record_with_id.keys()])
+                placeholders = ', '.join(['%s' for _ in record_with_id])
+                insert_query = f"INSERT INTO `{collection_name}` ({cols}) VALUES ({placeholders})"
+                cursor.execute(insert_query, tuple(record_with_id.values()))
+
             cursor.close()
             return True
 
         except MySQLError as e:
-            # Duplicate entry error
-            if e.errno == 1062:
+            # Duplicate entry error (errno 1062) or other MySQL errors
+            if hasattr(e, 'errno') and e.errno == 1062:
                 return False
             print(f"Error creating record: {e}")
             return False
@@ -183,7 +224,7 @@ class MariaDBDatabaseService(DatabaseService):
 
         Args:
             collection_name: Name of the table
-            record: Record data (stored as JSON)
+            record: Record data
             record_id: Optional record ID
 
         Returns:
@@ -200,12 +241,33 @@ class MariaDBDatabaseService(DatabaseService):
                 import uuid
                 record_id = str(uuid.uuid4())
 
-            # Use REPLACE to insert or update
-            replace_query = f"""
-            REPLACE INTO `{collection_name}` (id, data)
-            VALUES (%s, %s)
-            """
-            cursor.execute(replace_query, (record_id, json.dumps(record)))
+            # Check if table uses explicit columns or JSON storage
+            cursor.execute(f"DESCRIBE `{collection_name}`")
+            columns = {row[0] for row in cursor.fetchall()}
+
+            if 'data' in columns:
+                # JSON-based storage
+                replace_query = f"""
+                REPLACE INTO `{collection_name}` (id, data)
+                VALUES (%s, %s)
+                """
+                cursor.execute(replace_query, (record_id, json.dumps(record)))
+            else:
+                # Column-based storage
+                # Determine primary key column
+                if collection_name == 'users':
+                    pk_col = 'username'
+                    record_with_id = record.copy()
+                else:
+                    pk_col = 'record_id'
+                    record_with_id = record.copy()
+                    record_with_id[pk_col] = record_id
+
+                cols = ', '.join([f"`{k}`" for k in record_with_id.keys()])
+                placeholders = ', '.join(['%s' for _ in record_with_id])
+                replace_query = f"REPLACE INTO `{collection_name}` ({cols}) VALUES ({placeholders})"
+                cursor.execute(replace_query, tuple(record_with_id.values()))
+
             cursor.close()
             return record_id
 
@@ -228,15 +290,47 @@ class MariaDBDatabaseService(DatabaseService):
             return None
 
         try:
-            cursor = self.connection.cursor(dictionary=True)
-            select_query = f"SELECT data FROM `{collection_name}` WHERE id = %s"
-            cursor.execute(select_query, (record_id,))
-            row = cursor.fetchone()
-            cursor.close()
+            cursor = self.connection.cursor()
 
-            if row and 'data' in row:
-                return json.loads(row['data'])
-            return None
+            # Check if table uses explicit columns or JSON storage
+            cursor.execute(f"DESCRIBE `{collection_name}`")
+            columns = {row[0] for row in cursor.fetchall()}
+
+            if 'data' in columns:
+                # JSON-based storage
+                select_query = f"SELECT data FROM `{collection_name}` WHERE id = %s"
+                cursor.execute(select_query, (record_id,))
+                row = cursor.fetchone()
+                cursor.close()
+
+                if row and row[0]:
+                    return json.loads(row[0])
+                return None
+            else:
+                # Column-based storage
+                # Determine primary key column
+                if collection_name == 'users':
+                    pk_col = 'username'
+                else:
+                    pk_col = 'record_id'
+
+                select_query = f"SELECT * FROM `{collection_name}` WHERE `{pk_col}` = %s"
+                cursor.execute(select_query, (record_id,))
+
+                # Get column names
+                column_names = [desc[0] for desc in cursor.description]
+                row = cursor.fetchone()
+                cursor.close()
+
+                if row:
+                    # Convert to dict, excluding the primary key from the result
+                    result = {}
+                    for idx, col_name in enumerate(column_names):
+                        if col_name == pk_col and col_name == 'record_id':
+                            continue  # Skip record_id in result
+                        result[col_name] = row[idx]
+                    return result
+                return None
 
         except MySQLError as e:
             print(f"Error getting record: {e}")
@@ -256,8 +350,8 @@ class MariaDBDatabaseService(DatabaseService):
 
         Args:
             collection_name: Name of the table
-            query: Search query (JSON path queries for MariaDB)
-            filters: Filter conditions (JSON path filters)
+            query: Search query (for column-based tables)
+            filters: Filter conditions
             sort: Sort specifications
             limit: Maximum number of results
             offset: Offset for pagination
@@ -269,54 +363,117 @@ class MariaDBDatabaseService(DatabaseService):
             return []
 
         try:
-            cursor = self.connection.cursor(dictionary=True)
+            cursor = self.connection.cursor()
 
-            # Build WHERE clause for filters
-            where_clauses = []
-            params = []
+            # Check if table uses explicit columns or JSON storage
+            cursor.execute(f"DESCRIBE `{collection_name}`")
+            columns_info = cursor.fetchall()
+            columns = {row[0] for row in columns_info}
 
-            if filters:
-                for field, value in filters.items():
-                    # Use JSON_EXTRACT for filtering
-                    where_clauses.append(f"JSON_EXTRACT(data, '$.{field}') = %s")
-                    params.append(json.dumps(value) if not isinstance(value, str) else value)
+            if 'data' in columns:
+                # JSON-based storage
+                where_clauses = []
+                params = []
 
-            where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+                if filters:
+                    for field, value in filters.items():
+                        where_clauses.append(f"JSON_EXTRACT(data, '$.{field}') = %s")
+                        params.append(json.dumps(value) if not isinstance(value, str) else value)
 
-            # Build ORDER BY clause
-            order_sql = ""
-            if sort:
-                # Simplified sort - assumes sort is list of {field: order}
-                sort_parts = []
-                for sort_spec in sort:
-                    for field, order in sort_spec.items():
-                        direction = "DESC" if order == "desc" else "ASC"
-                        sort_parts.append(f"JSON_EXTRACT(data, '$.{field}') {direction}")
-                if sort_parts:
-                    order_sql = f"ORDER BY {', '.join(sort_parts)}"
+                where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
 
-            # Build final query
-            select_query = f"""
-            SELECT id, data FROM `{collection_name}`
-            {where_sql}
-            {order_sql}
-            LIMIT %s OFFSET %s
-            """
-            params.extend([limit, offset])
+                order_sql = ""
+                if sort:
+                    sort_parts = []
+                    for sort_spec in sort:
+                        for field, order in sort_spec.items():
+                            direction = "DESC" if order == "desc" else "ASC"
+                            sort_parts.append(f"JSON_EXTRACT(data, '$.{field}') {direction}")
+                    if sort_parts:
+                        order_sql = f"ORDER BY {'%s'.join(sort_parts)}"
 
-            cursor.execute(select_query, params)
-            rows = cursor.fetchall()
-            cursor.close()
+                select_query = f"""
+                SELECT id, data FROM `{collection_name}`
+                {where_sql}
+                {order_sql}
+                LIMIT %s OFFSET %s
+                """
+                params.extend([limit, offset])
 
-            # Format results similar to Elasticsearch format
-            results = []
-            for row in rows:
-                results.append({
-                    '_id': row['id'],
-                    '_source': json.loads(row['data'])
-                })
+                cursor.execute(select_query, params)
+                rows = cursor.fetchall()
+                cursor.close()
 
-            return results
+                results = []
+                for row in rows:
+                    results.append({
+                        '_id': row[0],
+                        '_source': json.loads(row[1])
+                    })
+
+                return results
+            else:
+                # Column-based storage
+                where_clauses = []
+                params = []
+
+                if filters:
+                    for field, value in filters.items():
+                        where_clauses.append(f"`{field}` = %s")
+                        params.append(value)
+
+                where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+
+                order_sql = ""
+                if sort:
+                    sort_parts = []
+                    for sort_spec in sort:
+                        for field, order in sort_spec.items():
+                            direction = "DESC" if order == "desc" else "ASC"
+                            sort_parts.append(f"`{field}` {direction}")
+                    if sort_parts:
+                        order_sql = f"ORDER BY {'%s'.join(sort_parts)}"
+
+                select_query = f"""
+                SELECT * FROM `{collection_name}`
+                {where_sql}
+                {order_sql}
+                LIMIT %s OFFSET %s
+                """
+                params.extend([limit, offset])
+
+                cursor.execute(select_query, params)
+
+                # Get column names
+                column_names = [desc[0] for desc in cursor.description]
+                rows = cursor.fetchall()
+                cursor.close()
+
+                # Determine primary key column
+                if collection_name == 'users':
+                    pk_col = 'username'
+                else:
+                    pk_col = 'record_id'
+
+                results = []
+                for row in rows:
+                    record = {}
+                    record_id = None
+                    for idx, col_name in enumerate(column_names):
+                        if col_name == pk_col:
+                            record_id = row[idx]
+                            if pk_col == 'username':
+                                # Include username in the record
+                                record[col_name] = row[idx]
+                        else:
+                            record[col_name] = row[idx]
+
+                    results.append({
+                        '_id': record_id,
+                        '_source': record
+                    })
+
+                return results
 
         except MySQLError as e:
             print(f"Error searching records: {e}")
@@ -340,22 +497,56 @@ class MariaDBDatabaseService(DatabaseService):
         try:
             cursor = self.connection.cursor()
 
-            # Get existing record
-            existing = self.get_record(collection_name, record_id)
-            if existing is None:
-                cursor.close()
-                return False
+            # Check if table uses explicit columns or JSON storage
+            cursor.execute(f"DESCRIBE `{collection_name}`")
+            columns = {row[0] for row in cursor.fetchall()}
 
-            # Merge with partial update
-            existing.update(partial_record)
+            if 'data' in columns:
+                # JSON-based storage
+                # Get existing record
+                existing = self.get_record(collection_name, record_id)
+                if existing is None:
+                    cursor.close()
+                    return False
 
-            # Update the record
-            update_query = f"""
-            UPDATE `{collection_name}`
-            SET data = %s
-            WHERE id = %s
-            """
-            cursor.execute(update_query, (json.dumps(existing), record_id))
+                # Merge with partial update
+                existing.update(partial_record)
+
+                # Update the record
+                update_query = f"""
+                UPDATE `{collection_name}`
+                SET data = %s
+                WHERE id = %s
+                """
+                cursor.execute(update_query, (json.dumps(existing), record_id))
+            else:
+                # Column-based storage
+                # Determine primary key column
+                if collection_name == 'users':
+                    pk_col = 'username'
+                else:
+                    pk_col = 'record_id'
+
+                # Build UPDATE SET clause
+                set_clauses = []
+                params = []
+                for field, value in partial_record.items():
+                    if field != pk_col:  # Don't update primary key
+                        set_clauses.append(f"`{field}` = %s")
+                        params.append(value)
+
+                if not set_clauses:
+                    cursor.close()
+                    return True  # Nothing to update
+
+                params.append(record_id)
+                update_query = f"""
+                UPDATE `{collection_name}`
+                SET {'%s'.join(set_clauses)}
+                WHERE `{pk_col}` = %s
+                """
+                cursor.execute(update_query, params)
+
             cursor.close()
             return True
 
@@ -379,7 +570,23 @@ class MariaDBDatabaseService(DatabaseService):
 
         try:
             cursor = self.connection.cursor()
-            delete_query = f"DELETE FROM `{collection_name}` WHERE id = %s"
+
+            # Check if table uses explicit columns or JSON storage
+            cursor.execute(f"DESCRIBE `{collection_name}`")
+            columns = {row[0] for row in cursor.fetchall()}
+
+            if 'data' in columns:
+                # JSON-based storage
+                delete_query = f"DELETE FROM `{collection_name}` WHERE id = %s"
+            else:
+                # Column-based storage
+                # Determine primary key column
+                if collection_name == 'users':
+                    pk_col = 'username'
+                else:
+                    pk_col = 'record_id'
+                delete_query = f"DELETE FROM `{collection_name}` WHERE `{pk_col}` = %s"
+
             cursor.execute(delete_query, (record_id,))
             affected = cursor.rowcount
             cursor.close()
@@ -395,7 +602,7 @@ class MariaDBDatabaseService(DatabaseService):
 
         Args:
             collection_name: Name of the table
-            query: Search query (JSON path queries)
+            query: Search query
 
         Returns:
             int: Number of matching records
@@ -406,16 +613,28 @@ class MariaDBDatabaseService(DatabaseService):
         try:
             cursor = self.connection.cursor()
 
-            # Build WHERE clause if query provided
+            # Check if table uses explicit columns or JSON storage
+            cursor.execute(f"DESCRIBE `{collection_name}`")
+            columns = {row[0] for row in cursor.fetchall()}
+
             where_sql = ""
             params = []
+
             if query:
-                # Simplified - assumes query is field: value pairs
-                where_clauses = []
-                for field, value in query.items():
-                    where_clauses.append(f"JSON_EXTRACT(data, '$.{field}') = %s")
-                    params.append(json.dumps(value) if not isinstance(value, str) else value)
-                where_sql = f"WHERE {' AND '.join(where_clauses)}"
+                if 'data' in columns:
+                    # JSON-based storage
+                    where_clauses = []
+                    for field, value in query.items():
+                        where_clauses.append(f"JSON_EXTRACT(data, '$.{field}') = %s")
+                        params.append(json.dumps(value) if not isinstance(value, str) else value)
+                    where_sql = f"WHERE {' AND '.join(where_clauses)}"
+                else:
+                    # Column-based storage
+                    where_clauses = []
+                    for field, value in query.items():
+                        where_clauses.append(f"`{field}` = %s")
+                        params.append(value)
+                    where_sql = f"WHERE {' AND '.join(where_clauses)}"
 
             count_query = f"SELECT COUNT(*) as count FROM `{collection_name}` {where_sql}"
             cursor.execute(count_query, params)

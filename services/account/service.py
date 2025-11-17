@@ -7,6 +7,12 @@ from typing import List, Optional, Dict, Any
 from config import Config
 from models import UserStats
 from services.database import get_database_service
+from services.database.schemas import (
+    UserRecord,
+    AnswerHistoryRecord,
+    get_user_schema_for_backend,
+    get_answer_history_schema_for_backend
+)
 
 
 class AccountService:
@@ -47,37 +53,18 @@ class AccountService:
         Create database collections with appropriate mappings
 
         Defines schema for efficient storage and retrieval of user data and answer history.
+        Uses centralized schema definitions to support multiple database backends.
         """
-        # Users collection schema
-        users_mapping = {
-            "mappings": {
-                "properties": {
-                    "username": {"type": "keyword"},
-                    "created_at": {"type": "date"}
-                }
-            }
-        }
+        # Determine which backend is being used
+        backend = self.config.DATABASE_BACKEND if hasattr(self.config, 'DATABASE_BACKEND') else 'elasticsearch'
 
-        # Answer history collection schema (unified schema)
-        answers_mapping = {
-            "mappings": {
-                "properties": {
-                    "username": {"type": "keyword"},
-                    "question": {"type": "text"},
-                    "equation": {"type": "text"},
-                    "user_answer": {"type": "integer"},
-                    "correct_answer": {"type": "integer"},
-                    "is_correct": {"type": "boolean"},
-                    "category": {"type": "keyword"},
-                    "timestamp": {"type": "date"},
-                    "reviewed": {"type": "boolean"}
-                }
-            }
-        }
+        # Get backend-specific schemas
+        users_schema = get_user_schema_for_backend(backend)
+        answers_schema = get_answer_history_schema_for_backend(backend)
 
         # Create collections using database service
-        self.db.create_collection(self.users_index, users_mapping)
-        self.db.create_collection(self.answers_index, answers_mapping)
+        self.db.create_collection(self.users_index, users_schema)
+        self.db.create_collection(self.answers_index, answers_schema)
 
     def _validate_username(self, username: str) -> bool:
         """
@@ -115,14 +102,11 @@ class AccountService:
             return False
 
         try:
-            # Create user document (will fail if user already exists)
-            doc = {
-                "username": username,
-                "created_at": datetime.utcnow().isoformat()
-            }
+            # Create user record using schema
+            user_record = UserRecord.create_new(username)
 
-            # Use create_document() which ensures it fails if user exists
-            return self.db.create_record(self.users_index, username, doc)
+            # Use create_record() which ensures it fails if user exists
+            return self.db.create_record(self.users_index, username, user_record.to_dict())
         except Exception as e:
             print(f"Unexpected error creating user: {e}")
             return False
@@ -207,21 +191,18 @@ class AccountService:
             if not self.get_user(username):
                 self.create_user(username)
 
-            is_correct = user_answer is not None and user_answer == correct_answer
+            # Create answer history record using schema
+            answer_record = AnswerHistoryRecord.create_new(
+                username=username,
+                question=question,
+                equation=equation,
+                user_answer=user_answer,
+                correct_answer=correct_answer,
+                category=category,
+                reviewed=False
+            )
 
-            doc = {
-                "username": username,
-                "question": question,
-                "equation": equation,
-                "user_answer": user_answer,
-                "correct_answer": correct_answer,
-                "is_correct": is_correct,
-                "category": category,
-                "timestamp": datetime.utcnow().isoformat(),
-                "reviewed": False
-            }
-
-            doc_id = self.db.insert_record(self.answers_index, doc)
+            doc_id = self.db.insert_record(self.answers_index, answer_record.to_dict())
 
             # Refresh index if requested (useful for testing)
             if refresh and doc_id:
