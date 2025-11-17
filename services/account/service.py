@@ -31,7 +31,7 @@ class AnswerHistory(Base):  # type: ignore[valid-type,misc]
     username = Column(String(100), nullable=False)
     question = Column(String(500), nullable=False)
     equation = Column(String(200), nullable=False)
-    user_answer = Column(Integer, nullable=False)
+    user_answer = Column(Integer, nullable=True)
     correct_answer = Column(Integer, nullable=False)
     is_correct = Column(Boolean, nullable=False)
     category = Column(String(50), nullable=False)
@@ -156,7 +156,7 @@ class AccountService:
             return []
 
     def record_answer(self, username: str, question: str, equation: str,
-                      user_answer: int, correct_answer: int,
+                      user_answer: Optional[int], correct_answer: int,
                       category: str) -> bool:
         """
         Record a user's answer with validation
@@ -191,7 +191,7 @@ class AccountService:
             if not self.get_user(username):
                 self.create_user(username)
 
-            is_correct = user_answer == correct_answer
+            is_correct = user_answer is not None and user_answer == correct_answer
 
             answer = AnswerHistory(
                 username=username,

@@ -90,6 +90,9 @@
 
     // Utility function to format numbers as integers when appropriate
     function formatNumber(num) {
+        if (num === null || num === undefined) {
+            return 'N/A';
+        }
         if (Number.isInteger(num) || num === Math.floor(num)) {
             return Math.floor(num).toString();
         }

@@ -3,7 +3,7 @@ Exam Service
 Manages exams for users and agents
 """
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from models import Question, ExamRequest, QuizHistory
 from services.qa_generation import QAGenerationService
 from services.classification import ClassificationService
@@ -50,14 +50,14 @@ class ExamService:
 
     def process_human_exam(self, request: ExamRequest,
                            questions: List[Question],
-                           answers: List[int]) -> Dict[str, Any]:
+                           answers: List[Optional[int]]) -> Dict[str, Any]:
         """
         Process exam results for a human user with pre-generated questions
 
         Args:
             request: ExamRequest
             questions: List of Question objects (already generated)
-            answers: List of user answers
+            answers: List of user answers (can include None if LLM failed)
 
         Returns:
             Exam results with teacher feedback
@@ -71,7 +71,7 @@ class ExamService:
         correct_count = 0
 
         for idx, (question, user_answer) in enumerate(zip(questions, answers)):
-            is_correct = user_answer == question.answer
+            is_correct = user_answer is not None and user_answer == question.answer
             if is_correct:
                 correct_count += 1
 
@@ -100,7 +100,7 @@ class ExamService:
 
             # Generate teacher feedback for wrong answers
             teacher_feedback = None
-            if not is_correct:
+            if not is_correct and user_answer is not None:
                 teacher_feedback = self.teacher_service.generate_feedback(
                     equation=question.equation,
                     question=question.question_text,
@@ -137,7 +137,7 @@ class ExamService:
         }
 
     def conduct_human_exam(self, request: ExamRequest,
-                           answers: List[int]) -> Dict[str, Any]:
+                           answers: List[Optional[int]]) -> Dict[str, Any]:
         """
         Conduct exam for a human user
 
