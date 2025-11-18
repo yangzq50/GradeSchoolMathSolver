@@ -218,7 +218,10 @@ class MariaDBDatabaseService(DatabaseService):
             print(f"Error creating record: {e}")
             return False
 
-    def insert_record(self, collection_name: str, record: Dict[str, Any], record_id: Optional[str] = None) -> Optional[str]:
+    def insert_record(
+        self, collection_name: str, record: Dict[str, Any],
+        record_id: Optional[str] = None
+    ) -> Optional[str]:
         """
         Insert a row (record) in MariaDB (create or update)
 
@@ -336,7 +339,7 @@ class MariaDBDatabaseService(DatabaseService):
             print(f"Error getting record: {e}")
             return None
 
-    def search_records(
+    def search_records(  # noqa: C901
         self,
         collection_name: str,
         query: Optional[Dict[str, Any]] = None,
@@ -373,7 +376,7 @@ class MariaDBDatabaseService(DatabaseService):
             if 'data' in columns:
                 # JSON-based storage
                 where_clauses = []
-                params = []
+                params: List[Any] = []
 
                 if filters:
                     for field, value in filters.items():
@@ -596,8 +599,10 @@ class MariaDBDatabaseService(DatabaseService):
             print(f"Error deleting record: {e}")
             return False
 
-    def count_records(self, collection_name: str, query: Optional[Dict[str, Any]] = None,
-                     filters: Optional[Dict[str, Any]] = None) -> int:
+    def count_records(  # noqa: C901
+        self, collection_name: str, query: Optional[Dict[str, Any]] = None,
+        filters: Optional[Dict[str, Any]] = None
+    ) -> int:
         """
         Count rows (records) matching a query in MariaDB
 

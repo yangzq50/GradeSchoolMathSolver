@@ -150,7 +150,7 @@ class AccountService:
             print(f"Error listing users: {e}")
             return []
 
-    def record_answer(self, username: str, question: str, equation: str,
+    def record_answer(self, username: str, question: str, equation: str,  # noqa: C901
                       user_answer: Optional[int], correct_answer: int,
                       category: str, refresh: bool = False) -> bool:
         """

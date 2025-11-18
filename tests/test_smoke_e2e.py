@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 @patch('services.database.elasticsearch_backend.Elasticsearch')
 @patch('services.qa_generation.service.requests.post')
-def test_full_exam_flow_with_mocked_external_services(mock_requests_post, mock_elasticsearch):
+def test_full_exam_flow_with_mocked_external_services(mock_requests_post, mock_elasticsearch):  # noqa: C901
     """
     End-to-end smoke test: Generate questions, take exam, process results
     with Database and AI Model service mocked
@@ -76,17 +76,17 @@ def test_full_exam_flow_with_mocked_external_services(mock_requests_post, mock_e
         return {"hits": {"hits": []}}
 
     mock_es_instance.search.side_effect = mock_search
-    
+
     # Mock count to return number of indexed records
     def mock_count(index, body, **kwargs):
         return {"count": len(indexed_records)}
-    
+
     mock_es_instance.count.side_effect = mock_count
-    
+
     # Mock indices.refresh for testing
     mock_es_instance.indices.refresh = MagicMock()
     mock_es_instance.indices.create = MagicMock()
-    
+
     mock_elasticsearch.return_value = mock_es_instance
 
     # Reset global database service to ensure fresh initialization
