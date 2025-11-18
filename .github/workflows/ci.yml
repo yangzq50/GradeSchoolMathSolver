@@ -39,7 +39,6 @@ jobs:
     - name: Type check with mypy
       run: |
         mypy services/ tests/ --ignore-missing-imports --no-strict-optional
-      continue-on-error: true
     
     - name: Run tests with pytest
       run: |

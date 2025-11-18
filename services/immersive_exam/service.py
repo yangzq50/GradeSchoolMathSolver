@@ -20,7 +20,7 @@ from services.agent_management import AgentManagementService
 class ImmersiveExamService:
     """Service for conducting immersive exams with synchronized question flow"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.qa_service = QAGenerationService()
         self.classification_service = ClassificationService()
         self.account_service = AccountService()
