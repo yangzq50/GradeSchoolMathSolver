@@ -5,7 +5,7 @@ Classifies math questions into predefined categories with robust error handling
 import re
 import requests
 from requests.exceptions import RequestException, Timeout
-from config import Config
+from gradeschoolmathsolver.config import Config
 
 
 class ClassificationService:
@@ -129,7 +129,7 @@ Respond with ONLY the category name, nothing else."""
                 # Extract content from OpenAI-compatible response
                 choices = result.get('choices', [])
                 if choices:
-                    category = choices[0].get('message', {}).get('content', '').strip().lower()
+                    category = str(choices[0].get('message', {}).get('content', '')).strip().lower()
                     # Validate the category
                     if category in self.categories:
                         return category

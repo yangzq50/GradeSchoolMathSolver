@@ -4,10 +4,10 @@ Manages user accounts and statistics using centralized database service
 """
 from datetime import datetime
 from typing import List, Optional, Dict, Any
-from config import Config
-from models import UserStats
-from services.database import get_database_service
-from services.database.schemas import (
+from gradeschoolmathsolver.config import Config
+from gradeschoolmathsolver.models import UserStats
+from gradeschoolmathsolver.services.database import get_database_service
+from gradeschoolmathsolver.services.database.schemas import (
     UserRecord,
     AnswerHistoryRecord,
     get_user_schema_for_backend,
@@ -46,7 +46,7 @@ class AccountService:
         Returns:
             bool: True if connected, False otherwise
         """
-        return self.db.is_connected()
+        return bool(self.db.is_connected())
 
     def _create_collections(self):
         """
@@ -109,7 +109,7 @@ class AccountService:
             success = self.db.create_record(self.users_index, username, user_record.to_dict())
             if not success:
                 print(f"User '{username}' already exists")
-            return success
+            return bool(success)
         except Exception as e:
             print(f"Unexpected error creating user: {e}")
             return False
@@ -130,7 +130,8 @@ class AccountService:
         if not self._is_connected():
             return None
 
-        return self.db.get_record(self.users_index, username)
+        result = self.db.get_record(self.users_index, username)
+        return dict(result) if result else None
 
     def list_users(self) -> List[str]:
         """

@@ -5,16 +5,16 @@ Manages synchronized immersive exams with ordered answering and optional reveal 
 import uuid
 from datetime import datetime
 from typing import List, Dict, Any, Optional
-from models import (
+from gradeschoolmathsolver.models import (
     ImmersiveExam, ImmersiveExamConfig, ImmersiveParticipant,
     ImmersiveExamAnswer, ImmersiveExamStatus,
     ParticipantType, RevealStrategy
 )
-from services.qa_generation import QAGenerationService
-from services.classification import ClassificationService
-from services.account import AccountService
-from services.quiz_history import QuizHistoryService
-from services.agent_management import AgentManagementService
+from gradeschoolmathsolver.services.qa_generation import QAGenerationService
+from gradeschoolmathsolver.services.classification import ClassificationService
+from gradeschoolmathsolver.services.account import AccountService
+from gradeschoolmathsolver.services.quiz_history import QuizHistoryService
+from gradeschoolmathsolver.services.agent_management import AgentManagementService
 
 
 class ImmersiveExamService:

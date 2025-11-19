@@ -123,10 +123,21 @@ The system consists of 12 main components:
    cd GradeSchoolMathSolver-RAG
    ```
 
-2. **Install Python dependencies**
+2. **Install the package**
+   
+   The project is now structured as a proper Python package for better maintainability.
+   
+   **Option 1: Install as a package (recommended)**
    ```bash
-   pip install -r requirements.txt
+   pip install .
    ```
+   
+   **Option 2: Install in development mode**
+   ```bash
+   pip install -e .
+   ```
+   
+   This will install all dependencies automatically and make the `gradeschoolmathsolver` command available.
 
 3. **Set up environment variables**
    ```bash
@@ -224,11 +235,12 @@ The system consists of 12 main components:
    
    b. Run the web application locally:
    ```bash
-   # From the project root directory
-   python -m web_ui.app
-   ```
+   # Using the installed package command
+   gradeschoolmathsolver
    
-   **Note:** Make sure you run this command from the project root directory (`GradeSchoolMathSolver-RAG/`), not from inside the `web_ui/` folder.
+   # Or using Python module (if installed in development mode)
+   python -m gradeschoolmathsolver.web_ui.app
+   ```
    
    The web app will be available at `http://localhost:5000`
 
@@ -245,7 +257,8 @@ If you prefer to run everything locally without Docker:
 2. **Install and run MariaDB locally** (see [MariaDB Integration Documentation](docs/MARIADB_INTEGRATION.md))
    - Or install Elasticsearch for RAG features (see [Elasticsearch Storage Documentation](docs/ELASTICSEARCH_STORAGE.md))
 3. **Update .env** with your LLM endpoint and database URLs
-4. **Run the web application** with `python -m web_ui.app`
+4. **Install the package** with `pip install .`
+5. **Run the web application** with `gradeschoolmathsolver`
 
 ## 📖 Usage
 
@@ -325,8 +338,8 @@ The mistake review feature allows you to learn from your past errors:
 ### Creating a Custom RAG Bot
 
 ```python
-from models import AgentConfig
-from services.agent_management import AgentManagementService
+from gradeschoolmathsolver.models import AgentConfig
+from gradeschoolmathsolver.services.agent_management import AgentManagementService
 
 # Create agent management service
 agent_mgmt = AgentManagementService()
@@ -572,66 +585,72 @@ User/Agent Request → Exam Service → QA Generation Service → Questions
 
 ```
 GradeSchoolMathSolver-RAG/
-├── config.py                 # Configuration settings
-├── models.py                 # Data models (including mistake review)
-├── requirements.txt          # Python dependencies
-├── docker-compose.yml        # Docker setup
-├── Dockerfile               # Web app container
-├── .env.example             # Environment template
-├── services/                # Core services
-│   ├── qa_generation/      # Question generation
-│   ├── classification/     # Question classification
-│   ├── account/           # User management
-│   ├── quiz_history/      # RAG history storage
-│   ├── exam/             # Exam management
-│   ├── immersive_exam/   # Immersive exam management
-│   ├── teacher/          # Teacher feedback service
-│   ├── mistake_review/   # Mistake review service (NEW)
-│   ├── agent/            # RAG bot logic
-│   └── agent_management/ # Agent configuration
-├── web_ui/               # Flask web interface
-│   ├── app.py           # Web application
-│   └── templates/       # HTML templates
-│       ├── immersive_exam_create.html
-│       ├── immersive_exam_live.html
-│       ├── immersive_exam_results.html
-│       └── mistake_review.html            # (NEW)
-├── docs/                # Documentation
-└── tests/              # Test files
+├── setup.py                     # Package installation script
+├── MANIFEST.in                  # Package manifest
+├── requirements.txt             # Python dependencies
+├── docker-compose.yml           # Docker setup
+├── Dockerfile                   # Multi-stage web app container
+├── .env.example                 # Environment template
+├── config.py                    # Backward compatibility stub (deprecated)
+├── models.py                    # Backward compatibility stub (deprecated)
+├── gradeschoolmathsolver/       # Main package
+│   ├── __init__.py             # Package initialization
+│   ├── config.py               # Configuration settings
+│   ├── models.py               # Data models (including mistake review)
+│   ├── services/               # Core services
+│   │   ├── qa_generation/     # Question generation
+│   │   ├── classification/    # Question classification
+│   │   ├── account/          # User management
+│   │   ├── database/         # Database backends
+│   │   ├── quiz_history/     # RAG history storage
+│   │   ├── exam/            # Exam management
+│   │   ├── immersive_exam/  # Immersive exam management
+│   │   ├── teacher/         # Teacher feedback service
+│   │   ├── mistake_review/  # Mistake review service (NEW)
+│   │   ├── agent/           # RAG bot logic
+│   │   └── agent_management/ # Agent configuration
+│   └── web_ui/              # Flask web interface
+│       ├── app.py          # Web application
+│       └── templates/      # HTML templates
+│           ├── immersive_exam_create.html
+│           ├── immersive_exam_live.html
+│           ├── immersive_exam_results.html
+│           └── mistake_review.html      # (NEW)
+├── docs/                   # Documentation
+└── tests/                 # Test files
     ├── test_basic.py
     ├── test_teacher_service.py
     ├── test_immersive_exam.py
-    └── test_mistake_review.py            # (NEW)
+    └── test_mistake_review.py          # (NEW)
 ```
 
 ### Adding New Features
 
-1. **New Question Type**: Modify `services/qa_generation/service.py`
-2. **New Category**: Add to `config.py` QUESTION_CATEGORIES
-3. **New Agent Strategy**: Extend `services/agent/service.py`
-4. **New UI Page**: Add template to `web_ui/templates/`
+1. **New Question Type**: Modify `gradeschoolmathsolver/services/qa_generation/service.py`
+2. **New Category**: Add to `gradeschoolmathsolver/config.py` QUESTION_CATEGORIES
+3. **New Agent Strategy**: Extend `gradeschoolmathsolver/services/agent/service.py`
+4. **New UI Page**: Add template to `gradeschoolmathsolver/web_ui/templates/`
 
 ## 🐛 Troubleshooting
 
 ### Module Import Errors
 
-If you get errors like `ModuleNotFoundError: No module named 'config'`, `'models'`, or `'services'`:
+The project is now a proper Python package. If you encounter import errors:
 
-1. **Make sure you're running from the project root directory**
+1. **Make sure the package is installed**
    ```bash
    cd GradeSchoolMathSolver-RAG
-   python -m web_ui.app
+   pip install -e .
    ```
 
-2. **Alternative: Set PYTHONPATH**
+2. **Run using the package command**
    ```bash
-   export PYTHONPATH=/path/to/GradeSchoolMathSolver-RAG
-   python web_ui/app.py
+   gradeschoolmathsolver
    ```
 
-3. **Make sure dependencies are installed**
+3. **Or run as a module**
    ```bash
-   pip install -r requirements.txt
+   python -m gradeschoolmathsolver.web_ui.app
    ```
 
 ### AI Model Not Responding

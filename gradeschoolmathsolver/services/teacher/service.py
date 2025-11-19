@@ -4,8 +4,8 @@ Provides educational feedback for incorrect answers
 """
 import requests
 from typing import Optional
-from config import Config
-from models import TeacherFeedback
+from gradeschoolmathsolver.config import Config
+from gradeschoolmathsolver.models import TeacherFeedback
 
 
 class TeacherService:
@@ -116,7 +116,8 @@ giving them the answer."""
                 # Extract content from OpenAI-compatible response
                 choices = result.get('choices', [])
                 if choices:
-                    return choices[0].get('message', {}).get('content', '').strip()
+                    content = choices[0].get('message', {}).get('content', '').strip()
+                    return str(content) if content else None
 
         except Exception as e:
             print(f"Error generating AI feedback: {e}")

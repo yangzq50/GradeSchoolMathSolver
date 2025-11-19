@@ -38,7 +38,7 @@ jobs:
     
     - name: Type check with mypy
       run: |
-        mypy services/ tests/ --ignore-missing-imports --no-strict-optional
+        mypy gradeschoolmathsolver/ tests/ --ignore-missing-imports --no-strict-optional
     
     - name: Run tests with pytest
       run: |

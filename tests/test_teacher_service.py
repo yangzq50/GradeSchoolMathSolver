@@ -4,8 +4,8 @@ Test suite for Teacher Service
 import sys
 sys.path.insert(0, '/home/runner/work/GradeSchoolMathSolver-RAG/GradeSchoolMathSolver-RAG')
 
-from services.teacher import TeacherService  # noqa: E402
-from config import Config  # noqa: E402
+from gradeschoolmathsolver.services.teacher import TeacherService  # noqa: E402
+from gradeschoolmathsolver.config import Config  # noqa: E402
 
 
 def test_teacher_service():

@@ -4,16 +4,16 @@ Flask-based web interface for the GradeSchoolMathSolver-RAG system
 """
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
-from config import Config
-from models import (
+from gradeschoolmathsolver.config import Config
+from gradeschoolmathsolver.models import (
     ExamRequest, AgentConfig, ImmersiveExamConfig,
     ImmersiveExamAnswer, ParticipantType, RevealStrategy
 )
-from services.account import AccountService
-from services.exam import ExamService
-from services.agent_management import AgentManagementService
-from services.immersive_exam import ImmersiveExamService
-from services.mistake_review import MistakeReviewService
+from gradeschoolmathsolver.services.account import AccountService
+from gradeschoolmathsolver.services.exam import ExamService
+from gradeschoolmathsolver.services.agent_management import AgentManagementService
+from gradeschoolmathsolver.services.immersive_exam import ImmersiveExamService
+from gradeschoolmathsolver.services.mistake_review import MistakeReviewService
 
 
 app = Flask(__name__, template_folder='templates')
@@ -530,6 +530,11 @@ def run_app():
         port=config.FLASK_PORT,
         debug=config.FLASK_DEBUG
     )
+
+
+def main():
+    """Main entry point for the application"""
+    run_app()
 
 
 if __name__ == '__main__':

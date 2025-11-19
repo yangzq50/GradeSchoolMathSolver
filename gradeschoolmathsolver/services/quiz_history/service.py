@@ -10,9 +10,9 @@ This service provides:
 """
 from datetime import datetime
 from typing import List, Optional, Dict, Any
-from config import Config
-from models import QuizHistory
-from services.database import get_database_service
+from gradeschoolmathsolver.config import Config
+from gradeschoolmathsolver.models import QuizHistory
+from gradeschoolmathsolver.services.database import get_database_service
 
 
 class QuizHistoryService:
@@ -214,7 +214,7 @@ class QuizHistoryService:
         Returns:
             True if connected and responsive, False otherwise
         """
-        return self.db.is_connected()
+        return bool(self.db.is_connected())
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ Tests for the enhancements:
 3. Visibility and display improvements
 """
 import pytest
-from services.qa_generation.service import QAGenerationService
+from gradeschoolmathsolver.services.qa_generation.service import QAGenerationService
 
 
 def test_integer_only_equations():
@@ -99,7 +99,7 @@ def test_question_generation():
 
 def test_format_number_utility():
     """Test the format_number utility function"""
-    from services.qa_generation.service import format_number
+    from gradeschoolmathsolver.services.qa_generation.service import format_number
 
     # Test integers
     assert format_number(5.0) == "5"

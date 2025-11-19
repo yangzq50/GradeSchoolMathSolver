@@ -11,8 +11,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def test_mistake_review_service():
     """Test mistake review service"""
-    from services.mistake_review import MistakeReviewService
-    from services.account import AccountService
+    from gradeschoolmathsolver.services.mistake_review import MistakeReviewService
+    from gradeschoolmathsolver.services.account import AccountService
     import pytest
 
     # Create services

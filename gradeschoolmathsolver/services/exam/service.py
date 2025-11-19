@@ -4,14 +4,14 @@ Manages exams for users and agents
 """
 from datetime import datetime
 from typing import List, Dict, Any, Optional
-from models import Question, ExamRequest
-from services.qa_generation import QAGenerationService
-from services.classification import ClassificationService
-from services.account import AccountService
-from services.quiz_history import QuizHistoryService
-from services.agent import AgentService
-from services.agent_management import AgentManagementService
-from services.teacher import TeacherService
+from gradeschoolmathsolver.models import Question, ExamRequest
+from gradeschoolmathsolver.services.qa_generation import QAGenerationService
+from gradeschoolmathsolver.services.classification import ClassificationService
+from gradeschoolmathsolver.services.account import AccountService
+from gradeschoolmathsolver.services.quiz_history import QuizHistoryService
+from gradeschoolmathsolver.services.agent import AgentService
+from gradeschoolmathsolver.services.agent_management import AgentManagementService
+from gradeschoolmathsolver.services.teacher import TeacherService
 
 
 class ExamService:

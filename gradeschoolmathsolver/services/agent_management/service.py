@@ -5,7 +5,7 @@ Manages RAG bot configurations and tracks their performance
 import json
 import os
 from typing import List, Optional
-from models import AgentConfig
+from gradeschoolmathsolver.models import AgentConfig
 
 
 class AgentManagementService:

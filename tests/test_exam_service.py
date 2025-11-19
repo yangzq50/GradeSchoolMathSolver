@@ -7,8 +7,8 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from services.exam import ExamService  # noqa: E402
-from models import ExamRequest, Question  # noqa: E402
+from gradeschoolmathsolver.services.exam import ExamService  # noqa: E402
+from gradeschoolmathsolver.models import ExamRequest, Question  # noqa: E402
 
 
 def test_create_exam_basic():

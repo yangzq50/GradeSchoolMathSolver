@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def test_immersive_exam_models():
     """Test immersive exam models"""
-    from models import (
+    from gradeschoolmathsolver.models import (
         ImmersiveExamConfig, ImmersiveExam, ImmersiveParticipant,
         RevealStrategy, ParticipantType, Question
     )
@@ -61,8 +61,8 @@ def test_immersive_exam_models():
 
 def test_immersive_exam_service():
     """Test immersive exam service"""
-    from services.immersive_exam import ImmersiveExamService
-    from models import ImmersiveExamConfig, RevealStrategy, ParticipantType
+    from gradeschoolmathsolver.services.immersive_exam import ImmersiveExamService
+    from gradeschoolmathsolver.models import ImmersiveExamConfig, RevealStrategy, ParticipantType
 
     service = ImmersiveExamService()
 
@@ -106,8 +106,8 @@ def test_immersive_exam_service():
 
 def test_immersive_exam_answer_flow():
     """Test answer submission and advancement"""
-    from services.immersive_exam import ImmersiveExamService
-    from models import (
+    from gradeschoolmathsolver.services.immersive_exam import ImmersiveExamService
+    from gradeschoolmathsolver.models import (
         ImmersiveExamConfig, RevealStrategy, ParticipantType,
         ImmersiveExamAnswer
     )
@@ -183,8 +183,8 @@ def test_immersive_exam_answer_flow():
 
 def test_reveal_strategies():
     """Test different reveal strategies"""
-    from services.immersive_exam import ImmersiveExamService
-    from models import (
+    from gradeschoolmathsolver.services.immersive_exam import ImmersiveExamService
+    from gradeschoolmathsolver.models import (
         ImmersiveExamConfig, RevealStrategy, ParticipantType,
         ImmersiveExamAnswer
     )
@@ -228,8 +228,8 @@ def test_reveal_strategies():
 
 def test_exam_completion():
     """Test exam completion and results"""
-    from services.immersive_exam import ImmersiveExamService
-    from models import (
+    from gradeschoolmathsolver.services.immersive_exam import ImmersiveExamService
+    from gradeschoolmathsolver.models import (
         ImmersiveExamConfig, RevealStrategy, ParticipantType,
         ImmersiveExamAnswer
     )

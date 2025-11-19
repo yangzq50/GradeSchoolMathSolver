@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def test_qa_generation():
     """Test QA generation service"""
-    from services.qa_generation import QAGenerationService
+    from gradeschoolmathsolver.services.qa_generation import QAGenerationService
 
     service = QAGenerationService()
 
@@ -34,7 +34,7 @@ def test_qa_generation():
 
 def test_classification():
     """Test classification service"""
-    from services.classification import ClassificationService
+    from gradeschoolmathsolver.services.classification import ClassificationService
 
     service = ClassificationService()
 
@@ -51,7 +51,7 @@ def test_classification():
 
 def test_account_service():
     """Test account service"""
-    from services.account import AccountService
+    from gradeschoolmathsolver.services.account import AccountService
     import pytest
     import random
 
@@ -81,7 +81,7 @@ def test_account_service():
 
 def test_agent_management():
     """Test agent management service"""
-    from services.agent_management import AgentManagementService
+    from gradeschoolmathsolver.services.agent_management import AgentManagementService
 
     service = AgentManagementService()
 
@@ -102,7 +102,7 @@ def test_agent_management():
 
 def test_models():
     """Test data models"""
-    from models import Question, AgentConfig, UserStats
+    from gradeschoolmathsolver.models import Question, AgentConfig, UserStats
 
     # Test Question model
     q = Question(
@@ -136,7 +136,7 @@ def test_models():
 
 def test_config():
     """Test configuration"""
-    from config import Config
+    from gradeschoolmathsolver.config import Config
 
     config = Config()
     assert config.AI_MODEL_NAME

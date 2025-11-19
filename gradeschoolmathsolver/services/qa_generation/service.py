@@ -6,8 +6,8 @@ import random
 from typing import Tuple
 import requests
 from requests.exceptions import RequestException, Timeout
-from models import Question
-from config import Config
+from gradeschoolmathsolver.models import Question
+from gradeschoolmathsolver.config import Config
 
 
 def format_number(value: float) -> str:
@@ -163,7 +163,7 @@ class QAGenerationService:
                 if choices:
                     content = choices[0].get('message', {}).get('content', '').strip()
                     if content:
-                        return content
+                        return str(content)
             return ""
         except (Timeout, RequestException):
             return ""
