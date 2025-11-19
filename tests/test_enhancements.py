@@ -5,7 +5,7 @@ Tests for the enhancements:
 3. Visibility and display improvements
 """
 import pytest
-from services.qa_generation.service import QAGenerationService
+from gradeschoolmathsolver.services.qa_generation.service import QAGenerationService
 
 
 def test_integer_only_equations():
