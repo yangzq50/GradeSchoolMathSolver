@@ -25,6 +25,8 @@ class MariaDBDatabaseService(DatabaseService):
     Maps generic database operations to SQL operations (tables, rows, etc.).
     """
 
+    connection: Optional[Any]
+
     def __init__(self, max_retries: int = 12, retry_delay: float = 5.0):
         """
         Initialize MariaDB database service with retry logic
