@@ -8,6 +8,10 @@ on:
 env:
   DOCKER_IMAGE_NAME: gradeschoolmathsolver
 
+permissions:
+  contents: read  # Required to checkout code
+  packages: write  # Required for Docker operations
+
 jobs:
   docker-build-and-push:
     runs-on: ubuntu-latest
