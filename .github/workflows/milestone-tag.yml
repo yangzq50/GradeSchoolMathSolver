@@ -1,0 +1,97 @@
+name: Auto Tag on Milestone Close
+
+on:
+  milestone:
+    types: [closed]
+
+permissions:
+  contents: write  # Required to create tags
+
+jobs:
+  create-tag:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history to ensure we can create tags
+    
+    - name: Parse milestone title and create tag
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const milestoneTitle = context.payload.milestone.title;
+          console.log(`Processing milestone: ${milestoneTitle}`);
+          
+          // Pattern matching for version extraction
+          // Pattern 1: vx.x.x - **** (e.g., "v1.2.3 - Feature Release")
+          const pattern1 = /^v(\d+)\.(\d+)\.(\d+)\s*-\s*.+$/;
+          // Pattern 2: vx.x - **** (e.g., "v1.2 - Minor Release")
+          const pattern2 = /^v(\d+)\.(\d+)\s*-\s*.+$/;
+          // Pattern 3: vx - **** (e.g., "v1 - Major Release")
+          const pattern3 = /^v(\d+)\s*-\s*.+$/;
+          
+          let tagName = null;
+          
+          if (pattern1.test(milestoneTitle)) {
+            // Extract vx.x.x format
+            const match = milestoneTitle.match(pattern1);
+            tagName = `v${match[1]}.${match[2]}.${match[3]}`;
+            console.log(`Matched pattern 1 (vx.x.x): ${tagName}`);
+          } else if (pattern2.test(milestoneTitle)) {
+            // Extract vx.x format and append .0
+            const match = milestoneTitle.match(pattern2);
+            tagName = `v${match[1]}.${match[2]}.0`;
+            console.log(`Matched pattern 2 (vx.x): ${tagName}`);
+          } else if (pattern3.test(milestoneTitle)) {
+            // Extract vx format and append .0.0
+            const match = milestoneTitle.match(pattern3);
+            tagName = `v${match[1]}.0.0`;
+            console.log(`Matched pattern 3 (vx): ${tagName}`);
+          } else {
+            console.log('Milestone title does not match any expected pattern. No tag will be created.');
+            return;
+          }
+          
+          // Check if tag already exists
+          try {
+            await github.rest.git.getRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `tags/${tagName}`
+            });
+            console.log(`Tag ${tagName} already exists. Skipping creation.`);
+            return;
+          } catch (error) {
+            if (error.status !== 404) {
+              throw error;
+            }
+            // Tag doesn't exist, proceed with creation
+            console.log(`Tag ${tagName} does not exist. Creating...`);
+          }
+          
+          // Get the current commit SHA
+          const { data: ref } = await github.rest.git.getRef({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            ref: 'heads/' + context.payload.repository.default_branch
+          });
+          const sha = ref.object.sha;
+          console.log(`Creating tag ${tagName} at commit ${sha}`);
+          
+          // Create the tag
+          await github.rest.git.createRef({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            ref: `refs/tags/${tagName}`,
+            sha: sha
+          });
+          
+          console.log(`Successfully created tag ${tagName}`);
+          core.setOutput('tag_created', tagName);
+    
+    - name: Tag creation summary
+      if: success()
+      run: |
+        echo "✅ Milestone closed and tag creation process completed successfully"

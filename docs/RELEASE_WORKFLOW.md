@@ -5,14 +5,42 @@ This document describes the automated release and Docker publishing workflows fo
 ## Overview
 
 The project uses GitHub Actions to automate:
-1. **GitHub Releases** - Automatically created when tags are pushed
-2. **Docker Hub Publishing** - Multi-platform Docker images built and published on releases
+1. **Milestone-Based Tagging** - Automatically creates tags when milestones are closed
+2. **GitHub Releases** - Automatically created when tags are pushed
+3. **Docker Hub Publishing** - Multi-platform Docker images built and published on releases
 
 ## Workflows
 
-### 1. Release Workflow (`.github/workflows/release.yml`)
+### 1. Milestone Tag Workflow (`.github/workflows/milestone-tag.yml`)
 
-**Trigger**: Pushing semantic version tags (e.g., `v1.0.0`, `v2.1.3`)
+**Trigger**: Closing a milestone with a properly formatted title
+
+**What it does**:
+- Automatically creates a git tag when a milestone is closed
+- Parses milestone title to extract version information
+- Supports three version formats with automatic normalization
+- Skips tag creation if tag already exists or milestone doesn't match patterns
+
+**Milestone Title Patterns**:
+
+1. **Full Semantic Version**: `vx.x.x - [description]`
+   - Example: `v1.2.3 - Feature Release` → Creates tag `v1.2.3`
+   
+2. **Minor Version**: `vx.x - [description]`
+   - Example: `v1.2 - Minor Release` → Creates tag `v1.2.0`
+   
+3. **Major Version**: `vx - [description]`
+   - Example: `v1 - Major Release` → Creates tag `v1.0.0`
+
+**Non-matching milestones** (ignored):
+- `Release 1.2.3` (missing 'v' prefix)
+- `v1.2.3` (missing dash and description)
+- `1.2.3 - Release` (missing 'v' prefix)
+- `Milestone without version` (no version)
+
+Once the tag is created, it automatically triggers the Release and Docker Publish workflows.
+
+### 2. Release Workflow (`.github/workflows/release.yml`)
 
 **What it does**:
 - Uses `actions/github-script` to call GitHub's generateReleaseNotes API
@@ -21,6 +49,10 @@ The project uses GitHub Actions to automate:
 - Extracts version information from the tag
 - Generates release description with installation instructions and auto-generated changelog
 - Links to the Docker image on Docker Hub
+
+**Trigger**: 
+- Pushing semantic version tags (e.g., `v1.0.0`, `v2.1.3`)
+- Automatically triggered by the Milestone Tag Workflow
 
 **Example release notes include**:
 - Auto-generated "What's Changed" section with PRs and commits
@@ -31,8 +63,6 @@ The project uses GitHub Actions to automate:
 
 ### 2. Docker Hub Publish Workflow (`.github/workflows/docker-publish.yml`)
 
-**Trigger**: Pushing semantic version tags (e.g., `v1.0.0`, `v2.1.3`)
-
 **What it does**:
 - Builds multi-platform Docker images (linux/amd64, linux/arm64)
 - Pushes multiple tags to Docker Hub:
@@ -42,6 +72,10 @@ The project uses GitHub Actions to automate:
   - `latest` - Latest release
 - Updates Docker Hub repository description from README.md using Docker Hub API directly
 - Uses GitHub Actions cache for faster builds
+
+**Trigger**: 
+- Pushing semantic version tags (e.g., `v1.0.0`, `v2.1.3`)
+- Automatically triggered by the Milestone Tag Workflow
 
 **Docker image metadata**:
 - OCI-compliant labels for better discoverability
@@ -107,7 +141,29 @@ The existing `Dockerfile` already meets these requirements.
 
 ## Creating a Release
 
-### Method 1: Using Git Tags (Recommended)
+### Method 1: Using Milestones (Recommended)
+
+This is the easiest and most organized way to create releases:
+
+```bash
+# 1. Create a milestone on GitHub with proper format
+#    Title examples:
+#    - "v1.0.0 - Initial Release"
+#    - "v1.2 - Feature Updates"
+#    - "v2 - Major Refactor"
+
+# 2. Add issues to the milestone and complete them
+
+# 3. Close the milestone when ready to release
+#    This automatically creates the git tag and triggers the release workflows
+```
+
+The milestone title determines the tag:
+- `v1.2.3 - Feature Release` → Tag `v1.2.3`
+- `v1.2 - Minor Release` → Tag `v1.2.0`
+- `v1 - Major Release` → Tag `v1.0.0`
+
+### Method 2: Using Git Tags (Manual)
 
 ```bash
 # Ensure you're on the main branch and up-to-date
@@ -119,7 +175,7 @@ git tag -a v1.0.0 -m "Release version 1.0.0"
 git push origin v1.0.0
 ```
 
-### Method 2: Using GitHub Web Interface
+### Method 3: Using GitHub Web Interface
 
 1. Go to your repository on GitHub
 2. Click on **Releases** → **Draft a new release**
@@ -130,14 +186,19 @@ git push origin v1.0.0
 
 ### What Happens Next
 
-When you push a tag matching `v*.*.*`:
+When you close a milestone with a matching pattern or push a tag matching `v*.*.*`:
 
-1. **Release Workflow** triggers:
+1. **Milestone Tag Workflow** triggers (if using milestone):
+   - Parses milestone title
+   - Creates appropriate git tag
+   - Takes ~10 seconds
+
+2. **Release Workflow** triggers:
    - Creates/updates GitHub release
    - Adds release notes and installation instructions
    - Takes ~30 seconds
 
-2. **Docker Publish Workflow** triggers:
+3. **Docker Publish Workflow** triggers:
    - Builds Docker images for multiple platforms
    - Pushes to Docker Hub with multiple tags
    - Updates Docker Hub description
