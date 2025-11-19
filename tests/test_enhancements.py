@@ -99,7 +99,7 @@ def test_question_generation():
 
 def test_format_number_utility():
     """Test the format_number utility function"""
-    from services.qa_generation.service import format_number
+    from gradeschoolmathsolver.services.qa_generation.service import format_number
 
     # Test integers
     assert format_number(5.0) == "5"
