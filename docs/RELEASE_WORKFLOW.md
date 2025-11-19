@@ -47,6 +47,20 @@ The project uses GitHub Actions to automate:
 
 ## Setup Instructions
 
+### Quick Validation
+
+Before setting up, you can validate that all workflow files are properly configured:
+
+```bash
+./scripts/validate-release-setup.sh
+```
+
+This script checks:
+- Workflow files exist and have valid YAML syntax
+- Dockerfile is properly configured
+- Documentation is in place
+- Existing version tags
+
 ### Prerequisites
 
 1. **Docker Hub Account**: You need a Docker Hub account to publish images
