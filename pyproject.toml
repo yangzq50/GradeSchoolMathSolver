@@ -1,0 +1,96 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gradeschoolmathsolver"
+version = "1.0.0"
+description = "An AI-powered Grade School Math Solver with RAG"
+readme = "README.md"
+authors = [
+    {name = "yangzq50"}
+]
+license = {text = "MIT"}
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Education",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+requires-python = ">=3.11"
+dependencies = [
+    "flask==3.1.2",
+    "flask-cors==6.0.1",
+    "elasticsearch==9.2.0",
+    "mysql-connector-python==9.5.0",
+    "requests==2.32.5",
+    "numpy==2.3.5",
+    "python-dotenv==1.2.1",
+    "pydantic==2.12.4",
+    "jinja2==3.1.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.0.1",
+    "pytest-cov==7.0.0",
+    "flake8==7.3.0",
+    "mypy==1.18.2",
+    "types-requests==2.32.4.20250913",
+]
+
+[project.scripts]
+gradeschoolmathsolver = "gradeschoolmathsolver.web_ui.app:main"
+
+[project.urls]
+Homepage = "https://github.com/yangzq50/GradeSchoolMathSolver-RAG"
+Repository = "https://github.com/yangzq50/GradeSchoolMathSolver-RAG"
+"Bug Tracker" = "https://github.com/yangzq50/GradeSchoolMathSolver-RAG/issues"
+
+[tool.setuptools]
+packages = ["gradeschoolmathsolver"]
+
+[tool.setuptools.package-data]
+gradeschoolmathsolver = ["web_ui/templates/*.html", "web_ui/templates/**/*.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "--disable-warnings",
+]
+minversion = "7.0"
+
+[tool.flake8]
+max-line-length = 120
+max-complexity = 10
+exclude = [
+    ".git",
+    "__pycache__",
+    ".pytest_cache",
+    "venv",
+    "env",
+    ".venv",
+    ".env",
+    "build",
+    "dist",
+    "*.egg-info",
+]
+ignore = ["W503"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
