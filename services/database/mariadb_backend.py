@@ -10,6 +10,7 @@ type safety compared to generic JSON storage.
 """
 from typing import List, Optional, Dict, Any
 import json
+import os
 import time
 import mysql.connector
 from mysql.connector import Error as MySQLError
@@ -27,16 +28,23 @@ class MariaDBDatabaseService(DatabaseService):
 
     connection: Optional[Any]
 
-    def __init__(self, max_retries: int = 12, retry_delay: float = 5.0):
+    def __init__(self, max_retries: Optional[int] = None, retry_delay: Optional[float] = None):
         """
         Initialize MariaDB database service with retry logic
 
         Args:
-            max_retries: Maximum number of connection attempts (default: 12)
-            retry_delay: Initial delay between retries in seconds (default: 5.0)
+            max_retries: Maximum number of connection attempts (default: 12, or from env DB_MAX_RETRIES)
+            retry_delay: Initial delay between retries in seconds (default: 5.0, or from env DB_RETRY_DELAY)
         """
         self.config = Config()
         self.connection = None
+
+        # Allow environment variables to override defaults for testing/CI
+        if max_retries is None:
+            max_retries = int(os.getenv('DB_MAX_RETRIES', '12'))
+        if retry_delay is None:
+            retry_delay = float(os.getenv('DB_RETRY_DELAY', '5.0'))
+
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.connect()
