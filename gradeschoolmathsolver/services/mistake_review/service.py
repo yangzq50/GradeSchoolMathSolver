@@ -251,7 +251,8 @@ if __name__ == "__main__":
     import os
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-    from gradeschoolmathsolver.services.account import AccountService  # noqa: E402
+    # AccountService is already imported at the top of this file
+    # from gradeschoolmathsolver.services.account import AccountService  # noqa: E402
 
     # Create test data
     account_service = AccountService()

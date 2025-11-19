@@ -102,7 +102,7 @@ def test_agent_management():
 
 def test_models():
     """Test data models"""
-    from models import Question, AgentConfig, UserStats
+    from gradeschoolmathsolver.models import Question, AgentConfig, UserStats
 
     # Test Question model
     q = Question(
@@ -136,7 +136,7 @@ def test_models():
 
 def test_config():
     """Test configuration"""
-    from config import Config
+    from gradeschoolmathsolver.config import Config
 
     config = Config()
     assert config.AI_MODEL_NAME
