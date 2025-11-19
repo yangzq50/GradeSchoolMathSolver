@@ -67,10 +67,19 @@ jobs:
           org.opencontainers.image.licenses=MIT
     
     - name: Update Docker Hub description
-      uses: peter-evans/dockerhub-description@v4
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-        repository: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}
-        short-description: AI-powered Grade School Math Solver with RAG
-        readme-filepath: ./README.md
+      run: |
+        # Login to Docker Hub and get token
+        TOKEN=$(curl -s -X POST \
+          -H "Content-Type: application/json" \
+          -d "{\"username\": \"${{ secrets.DOCKERHUB_USERNAME }}\", \"password\": \"${{ secrets.DOCKERHUB_TOKEN }}\"}" \
+          https://hub.docker.com/v2/users/login/ | jq -r .token)
+        
+        # Update repository description
+        README_CONTENT=$(cat README.md | jq -Rs .)
+        SHORT_DESC="AI-powered Grade School Math Solver with RAG"
+        
+        curl -X PATCH \
+          -H "Authorization: JWT ${TOKEN}" \
+          -H "Content-Type: application/json" \
+          -d "{\"full_description\": ${README_CONTENT}, \"description\": \"${SHORT_DESC}\"}" \
+          "https://hub.docker.com/v2/repositories/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}/"

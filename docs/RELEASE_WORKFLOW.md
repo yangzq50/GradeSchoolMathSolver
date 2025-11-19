@@ -40,13 +40,18 @@ The project uses GitHub Actions to automate:
   - `1.0` - Minor version
   - `1` - Major version
   - `latest` - Latest release
-- Updates Docker Hub repository description from README.md
+- Updates Docker Hub repository description from README.md using Docker Hub API directly
 - Uses GitHub Actions cache for faster builds
 
 **Docker image metadata**:
 - OCI-compliant labels for better discoverability
 - Version, source, revision, and license information
 - Proper title and description
+
+**Security**:
+- Uses Docker Hub API directly (no third-party actions)
+- Credentials handled securely via GitHub Secrets
+- JWT token-based authentication
 
 ## Setup Instructions
 
