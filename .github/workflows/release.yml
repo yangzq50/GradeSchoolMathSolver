@@ -26,30 +26,48 @@ jobs:
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
     
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v2
+    - name: Generate Release Notes
+      id: release_notes
+      uses: actions/github-script@v7
       with:
-        name: Release ${{ steps.version.outputs.tag }}
-        body: |
-          ## What's Changed
+        script: |
+          const { data: releaseNotes } = await github.rest.repos.generateReleaseNotes({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            tag_name: '${{ steps.version.outputs.tag }}'
+          });
           
-          See the [full changelog](https://github.com/${{ github.repository }}/compare/${{ steps.version.outputs.tag }}...HEAD) for details.
-          
-          **Docker Image**: `${{ github.repository_owner }}/gradeschoolmathsolver:${{ steps.version.outputs.version }}`
+          const customBody = `
+          **Docker Image**: \`${{ github.repository_owner }}/gradeschoolmathsolver:${{ steps.version.outputs.version }}\`
           
           ## Installation
           
           ### Using Docker
-          ```bash
+          \`\`\`bash
           docker pull ${{ github.repository_owner }}/gradeschoolmathsolver:${{ steps.version.outputs.version }}
-          ```
+          \`\`\`
           
           ### Using pip
-          ```bash
+          \`\`\`bash
           pip install git+https://github.com/${{ github.repository }}.git@${{ steps.version.outputs.tag }}
-          ```
+          \`\`\`
           
           For more information, see the [README](https://github.com/${{ github.repository }}/blob/${{ steps.version.outputs.tag }}/README.md).
+          
+          ---
+          
+          ${releaseNotes.body}
+          `;
+          
+          core.setOutput('body', customBody);
+    
+    - name: Create GitHub Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.version.outputs.tag }}
+        release_name: Release ${{ steps.version.outputs.tag }}
+        body: ${{ steps.release_notes.outputs.body }}
         draft: false
         prerelease: false
-        generate_release_notes: true

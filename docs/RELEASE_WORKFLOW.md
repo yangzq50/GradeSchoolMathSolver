@@ -15,16 +15,19 @@ The project uses GitHub Actions to automate:
 **Trigger**: Pushing semantic version tags (e.g., `v1.0.0`, `v2.1.3`)
 
 **What it does**:
-- Creates a GitHub release with auto-generated release notes
+- Uses `actions/github-script` to call GitHub's generateReleaseNotes API
+- Automatically generates changelog from commit history and pull requests
+- Creates a GitHub release using `actions/create-release@v1`
 - Extracts version information from the tag
-- Generates release description with installation instructions
+- Generates release description with installation instructions and auto-generated changelog
 - Links to the Docker image on Docker Hub
 
 **Example release notes include**:
-- What's Changed section with changelog link
+- Auto-generated "What's Changed" section with PRs and commits
 - Docker image pull command
 - pip installation command
 - Link to README for the specific version
+- List of new contributors (if any)
 
 ### 2. Docker Hub Publish Workflow (`.github/workflows/docker-publish.yml`)
 
