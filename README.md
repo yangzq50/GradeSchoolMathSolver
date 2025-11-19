@@ -23,13 +23,20 @@ An AI-powered Grade School Math Solver with RAG (Retrieval-Augmented Generation)
 
 ## 🏗️ Architecture
 
-The system consists of 12 main components:
+The system consists of 13 main components:
 
 ### 0. AI Model Service
 - Uses Docker Desktop models via localhost endpoint (port 12434)
 - Provides natural language generation for questions and reasoning
 - OpenAI-compatible chat/completions API format
 - See [AI Model Service Documentation](docs/AI_MODEL_SERVICE.md)
+
+### 0.5. Embedding Service
+- Generates vector embeddings using Docker Model Runner
+- Uses `ai/embeddinggemma:300M-Q8_0` model for text embedding
+- Enables efficient vector-based similarity search for RAG
+- OpenAI-compatible embeddings API format
+- See [Embedding Service Documentation](docs/EMBEDDING_SERVICE.md)
 
 ### 1. QA Generation Service
 - Generates mathematical equations based on difficulty level
@@ -168,7 +175,8 @@ The system consists of 12 main components:
    c. **Download AI Models**
       - In Docker Desktop, navigate to the **AI Models** section (or **Models** tab)
       - Search for and pull `llama3.2:1B-Q4_0` (or your preferred model)
-      - Wait for the model to download and become ready
+      - **For RAG capabilities**: Also download `embeddinggemma:300M-Q8_0` for embedding generation
+      - Wait for the models to download and become ready
    
    d. **Verify Docker Model Runner is working**
       ```bash
@@ -182,10 +190,18 @@ The system consists of 12 main components:
           "model": "ai/llama3.2:1B-Q4_0",
           "messages": [{"role": "user", "content": "What is 2+2?"}]
         }'
+      
+      # Test embedding generation (for RAG)
+      curl http://localhost:12434/engines/llama.cpp/v1/embeddings \
+        -H "Content-Type: application/json" \
+        -d '{
+          "model": "ai/embeddinggemma:300M-Q8_0",
+          "input": "What is 2+2?"
+        }'
       ```
    
    The models run at **localhost:12434** and provide an OpenAI-compatible API endpoint.
-   Example model: `ai/llama3.2:1B-Q4_0`
+   Example models: `ai/llama3.2:1B-Q4_0` (chat), `ai/embeddinggemma:300M-Q8_0` (embeddings)
 
 5. **Start the Application**
 
@@ -468,6 +484,9 @@ python services/teacher/service.py
 # Test Mistake Review Service (NEW)
 python services/mistake_review/service.py
 
+# Test Embedding Service (NEW)
+python gradeschoolmathsolver/services/embedding/service.py
+
 # Run all basic tests
 python tests/test_basic.py
 
@@ -479,6 +498,9 @@ python tests/test_immersive_exam.py
 
 # Run mistake review tests (NEW)
 python tests/test_mistake_review.py
+
+# Run embedding service tests (NEW)
+python tests/test_embedding_service.py
 ```
 
 ## 🔧 Configuration
@@ -500,6 +522,10 @@ Key settings:
 - `AI_MODEL_URL`: URL of the AI model service (e.g., http://localhost:12434)
 - `AI_MODEL_NAME`: Name of the model to use (e.g., ai/llama3.2:1B-Q4_0)
 - `LLM_ENGINE`: LLM engine to use (e.g., llama.cpp)
+- `EMBEDDING_MODEL_URL`: URL of the embedding service (e.g., http://localhost:12434)
+- `EMBEDDING_MODEL_NAME`: Embedding model name (e.g., ai/embeddinggemma:300M-Q8_0)
+- `EMBEDDING_ENGINE`: Embedding engine (e.g., llama.cpp)
+- `EMBEDDING_SERVICE_ENABLED`: Enable/disable embedding generation (default: True)
 - `DATABASE_BACKEND`: Database backend (mariadb or elasticsearch, default: mariadb)
 - `MARIADB_HOST`: MariaDB hostname (default: localhost)
 - `MARIADB_PORT`: MariaDB port (default: 3306)
@@ -603,10 +629,11 @@ GradeSchoolMathSolver-RAG/
 │   │   ├── account/          # User management
 │   │   ├── database/         # Database backends
 │   │   ├── quiz_history/     # RAG history storage
+│   │   ├── embedding/        # Embedding generation (NEW)
 │   │   ├── exam/            # Exam management
 │   │   ├── immersive_exam/  # Immersive exam management
 │   │   ├── teacher/         # Teacher feedback service
-│   │   ├── mistake_review/  # Mistake review service (NEW)
+│   │   ├── mistake_review/  # Mistake review service
 │   │   ├── agent/           # RAG bot logic
 │   │   └── agent_management/ # Agent configuration
 │   └── web_ui/              # Flask web interface
