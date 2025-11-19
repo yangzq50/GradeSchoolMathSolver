@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # Elasticsearch for Quiz History (default database backend)
+  # Elasticsearch for Quiz History (alternative database backend)
   elasticsearch:
     image: elasticsearch:9.2.1
     container_name: math-solver-elasticsearch
@@ -18,9 +18,8 @@ services:
       - math-solver-network
     profiles:
       - elasticsearch
-      - ""  # Default profile
 
-  # MariaDB 11.8 LTS (alternative database backend)
+  # MariaDB 11.8 LTS (default database backend)
   mariadb:
     image: mariadb:11.8-ubi
     container_name: math-solver-mariadb
@@ -38,6 +37,7 @@ services:
       - math-solver-network
     profiles:
       - mariadb
+      - ""  # Default profile
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
 
   # Web Application
@@ -50,7 +50,7 @@ services:
       - AI_MODEL_URL=http://host.docker.internal:12434
       - AI_MODEL_NAME=ai/llama3.2:1B-Q4_0
       - LLM_ENGINE=llama.cpp
-      - DATABASE_BACKEND=${DATABASE_BACKEND:-elasticsearch}
+      - DATABASE_BACKEND=${DATABASE_BACKEND:-mariadb}
       - ELASTICSEARCH_HOST=elasticsearch
       - ELASTICSEARCH_PORT=9200
       - MARIADB_HOST=mariadb
@@ -63,7 +63,7 @@ services:
     volumes:
       - ./data:/app/data
     depends_on:
-      - elasticsearch
+      - mariadb
     restart: unless-stopped
     networks:
       - math-solver-network
