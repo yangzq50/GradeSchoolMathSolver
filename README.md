@@ -605,7 +605,7 @@ User/Agent Request → Exam Service → QA Generation Service → Questions
 
 ```
 GradeSchoolMathSolver-RAG/
-├── setup.py                     # Package installation script
+├── pyproject.toml               # Package configuration (replaces setup.py)
 ├── MANIFEST.in                  # Package manifest
 ├── requirements.txt             # Python dependencies
 ├── docker-compose.yml           # Docker setup
@@ -753,9 +753,9 @@ For detailed troubleshooting, see [MariaDB Integration Documentation](docs/MARIA
 
 3. Restart application to recreate tables
 
-## 📦 Releases and Docker Publishing
+## 📦 Releases and Publishing
 
-This project uses automated GitHub Actions workflows to create releases and publish Docker images.
+This project uses automated GitHub Actions workflows to create releases and publish to Docker Hub and PyPI.
 
 ### Creating a Release
 
@@ -771,6 +771,7 @@ To create a new release:
 This will automatically:
 - Create a GitHub release with auto-generated release notes
 - Build and publish multi-platform Docker images to Docker Hub
+- Build and publish the Python package to PyPI
 - Tag the Docker image with version numbers (e.g., `1.0.0`, `1.0`, `1`, `latest`)
 
 ### Docker Hub Images
@@ -783,7 +784,81 @@ Pre-built Docker images are available at:
   - `1` - Latest minor version
   - `latest` - Latest release
 
+### PyPI Package
+
+The package is also available on PyPI:
+- **Package**: [gradeschoolmathsolver](https://pypi.org/project/gradeschoolmathsolver/)
+- **Install**: `pip install gradeschoolmathsolver`
+
+### Package Configuration
+
+The project uses `pyproject.toml` for package configuration (modern Python packaging standard). 
+
+Key sections in `pyproject.toml`:
+- `[project]` - Package metadata (name, version, description, dependencies)
+- `[build-system]` - Build requirements and backend (setuptools)
+- `[tool.setuptools]` - Package discovery configuration
+- `[project.scripts]` - Console script entry points
+
+To update dependencies or metadata, edit `pyproject.toml` directly. The package version in `pyproject.toml` will be automatically updated to match the git tag during the release workflow.
+
 ### For Maintainers
+
+#### Setting up PyPI Publishing
+
+To enable automated PyPI publishing, you need to configure the `PYPI_TOKEN` secret:
+
+1. **Generate a PyPI API token**:
+   - Log in to [PyPI](https://pypi.org/) (or [TestPyPI](https://test.pypi.org/) for testing)
+   - Go to Account Settings → API tokens
+   - Click "Add API token"
+   - Set the token name (e.g., "GradeSchoolMathSolver GitHub Actions")
+   - Set the scope to the specific project or "Entire account"
+   - Copy the generated token (starts with `pypi-`)
+
+2. **Add the token to GitHub Secrets**:
+   - Go to your GitHub repository → Settings → Secrets and variables → Actions
+   - Click "New repository secret"
+   - Name: `PYPI_TOKEN`
+   - Value: Paste the PyPI token
+   - Click "Add secret"
+
+3. **Configure the "prod" environment**:
+   - Go to Settings → Environments
+   - Create or configure the "prod" environment
+   - Optionally add protection rules (e.g., required reviewers)
+
+#### Building and Testing Locally
+
+To build the package locally:
+
+```bash
+# Install build tools
+pip install build twine
+
+# Build the package
+python -m build
+
+# Check the built package
+twine check dist/*
+
+# Test upload to TestPyPI (optional)
+twine upload --repository testpypi dist/*
+```
+
+#### Updating Package Dependencies
+
+Edit `pyproject.toml` to add or update dependencies:
+
+```toml
+dependencies = [
+    "flask==3.1.2",
+    "new-package>=1.0.0",
+    ...
+]
+```
+
+After updating dependencies, test locally with `pip install -e .` to install in development mode.
 
 Detailed instructions for setting up and customizing the release workflows:
 - [Release Workflow Documentation](docs/RELEASE_WORKFLOW.md) - Complete guide for GitHub releases and Docker Hub publishing
