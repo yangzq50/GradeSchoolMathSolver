@@ -1,6 +1,6 @@
 # GitHub Releases and Docker Hub Publishing
 
-This document describes the automated release and Docker publishing workflows for the GradeSchoolMathSolver-RAG project.
+This document describes the automated release and Docker publishing workflows for the GradeSchoolMathSolver project.
 
 ## Overview
 
@@ -241,16 +241,16 @@ For a release `v1.2.3`, the following tags are created:
 
 ```bash
 # Specific version (recommended for production)
-docker pull yangzq50/gradeschoolmathsolver-rag:1.0.0
+docker pull yangzq50/gradeschoolmathsolver:1.0.0
 
 # Latest patch version
-docker pull yangzq50/gradeschoolmathsolver-rag:1.0
+docker pull yangzq50/gradeschoolmathsolver:1.0
 
 # Latest minor version
-docker pull yangzq50/gradeschoolmathsolver-rag:1
+docker pull yangzq50/gradeschoolmathsolver:1
 
 # Latest release
-docker pull yangzq50/gradeschoolmathsolver-rag:latest
+docker pull yangzq50/gradeschoolmathsolver:latest
 ```
 
 ## Customization
@@ -335,7 +335,7 @@ body: |
 
 ### Verifying Docker Hub Publication
 
-1. Visit `https://hub.docker.com/r/<username>/gradeschoolmathsolver-rag`
+1. Visit `https://hub.docker.com/r/<username>/gradeschoolmathsolver`
 2. Check **Tags** tab for new version tags
 3. Verify **Overview** tab description matches README.md
 
