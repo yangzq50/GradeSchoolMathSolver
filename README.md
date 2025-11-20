@@ -858,7 +858,7 @@ Edit `pyproject.toml` to add or update dependencies:
 dependencies = [
     "flask==3.1.2",
     "new-package>=1.0.0",
-    ...
+    "..."
 ]
 ```
 
