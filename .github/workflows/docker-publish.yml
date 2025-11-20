@@ -15,24 +15,43 @@ permissions:
 jobs:
   docker-build-and-push:
     runs-on: ubuntu-latest
+    environment: prod  # Run in prod environment
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history to verify branch
+    
+    - name: Verify tag is on default branch
+      id: verify_branch
+      run: |
+        # Check if the current tag is reachable from the default branch (main)
+        if git branch -r --contains ${{ github.ref }} | grep -q "origin/main"; then
+          echo "Tag is on the default branch (main)"
+          echo "on_default_branch=true" >> $GITHUB_OUTPUT
+        else
+          echo "Tag is NOT on the default branch (main). Skipping Docker publish."
+          echo "on_default_branch=false" >> $GITHUB_OUTPUT
+        fi
     
     - name: Set up QEMU
+      if: steps.verify_branch.outputs.on_default_branch == 'true'
       uses: docker/setup-qemu-action@v3
     
     - name: Set up Docker Buildx
+      if: steps.verify_branch.outputs.on_default_branch == 'true'
       uses: docker/setup-buildx-action@v3
     
     - name: Log in to Docker Hub
+      if: steps.verify_branch.outputs.on_default_branch == 'true'
       uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     
     - name: Extract version from tag
+      if: steps.verify_branch.outputs.on_default_branch == 'true'
       id: version
       run: |
         # Extract version without 'v' prefix (e.g., v1.0.0 -> 1.0.0)
@@ -46,6 +65,7 @@ jobs:
         echo "minor=$MINOR" >> $GITHUB_OUTPUT
     
     - name: Build and push Docker image
+      if: steps.verify_branch.outputs.on_default_branch == 'true'
       uses: docker/build-push-action@v6
       with:
         context: .
@@ -67,6 +87,7 @@ jobs:
           org.opencontainers.image.licenses=MIT
     
     - name: Update Docker Hub description
+      if: steps.verify_branch.outputs.on_default_branch == 'true'
       run: |
         # Login to Docker Hub and get token
         TOKEN=$(curl -s -X POST \
