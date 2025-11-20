@@ -18,7 +18,21 @@ jobs:
       with:
         fetch-depth: 0  # Fetch all history for release notes generation
     
+    - name: Verify tag is on default branch
+      id: verify_branch
+      run: |
+        # Check if the current tag is reachable from the default branch
+        DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+        if git branch -r --contains ${{ github.ref }} | grep -q "origin/${DEFAULT_BRANCH}"; then
+          echo "Tag is on the default branch (${DEFAULT_BRANCH})"
+          echo "on_default_branch=true" >> $GITHUB_OUTPUT
+        else
+          echo "Tag is NOT on the default branch (${DEFAULT_BRANCH}). Skipping release."
+          echo "on_default_branch=false" >> $GITHUB_OUTPUT
+        fi
+    
     - name: Extract version from tag
+      if: steps.verify_branch.outputs.on_default_branch == 'true'
       id: version
       run: |
         # Extract version without 'v' prefix (e.g., v1.0.0 -> 1.0.0)
@@ -27,6 +41,7 @@ jobs:
         echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
     
     - name: Generate Release Notes
+      if: steps.verify_branch.outputs.on_default_branch == 'true'
       id: release_notes
       uses: actions/github-script@v7
       with:
@@ -62,6 +77,7 @@ jobs:
           core.setOutput('body', customBody);
     
     - name: Create GitHub Release
+      if: steps.verify_branch.outputs.on_default_branch == 'true'
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
