@@ -21,7 +21,7 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
 
 # Copy the package files
 COPY pyproject.toml README.md ./
-COPY gradeschoolmathsolver ./gradeschoolmathsolver
+COPY src/gradeschoolmathsolver ./src/gradeschoolmathsolver
 
 # Install the package
 RUN pip install --no-cache-dir .

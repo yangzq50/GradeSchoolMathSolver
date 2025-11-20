@@ -56,7 +56,7 @@ Repository = "https://github.com/yangzq50/GradeSchoolMathSolver"
 "Bug Tracker" = "https://github.com/yangzq50/GradeSchoolMathSolver/issues"
 
 [tool.setuptools.packages.find]
-where = ["."]
+where = ["src"]
 include = ["gradeschoolmathsolver*"]
 exclude = ["tests*"]
 

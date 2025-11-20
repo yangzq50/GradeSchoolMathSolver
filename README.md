@@ -623,45 +623,44 @@ GradeSchoolMathSolver/
 ├── docker-compose.yml           # Docker setup
 ├── Dockerfile                   # Multi-stage web app container
 ├── .env.example                 # Environment template
-├── config.py                    # Backward compatibility stub (deprecated)
-├── models.py                    # Backward compatibility stub (deprecated)
-├── gradeschoolmathsolver/       # Main package
-│   ├── __init__.py             # Package initialization
-│   ├── config.py               # Configuration settings
-│   ├── models.py               # Data models (including mistake review)
-│   ├── services/               # Core services
-│   │   ├── qa_generation/     # Question generation
-│   │   ├── classification/    # Question classification
-│   │   ├── account/          # User management
-│   │   ├── database/         # Database backends
-│   │   ├── quiz_history/     # RAG history storage
-│   │   ├── exam/            # Exam management
-│   │   ├── immersive_exam/  # Immersive exam management
-│   │   ├── teacher/         # Teacher feedback service
-│   │   ├── mistake_review/  # Mistake review service (NEW)
-│   │   ├── agent/           # RAG bot logic
-│   │   └── agent_management/ # Agent configuration
-│   └── web_ui/              # Flask web interface
-│       ├── app.py          # Web application
-│       └── templates/      # HTML templates
-│           ├── immersive_exam_create.html
-│           ├── immersive_exam_live.html
-│           ├── immersive_exam_results.html
-│           └── mistake_review.html      # (NEW)
+├── src/                         # Source code
+│   └── gradeschoolmathsolver/  # Main package
+│       ├── __init__.py         # Package initialization
+│       ├── config.py           # Configuration settings
+│       ├── models.py           # Data models (including mistake review)
+│       ├── services/           # Core services
+│       │   ├── qa_generation/     # Question generation
+│       │   ├── classification/    # Question classification
+│       │   ├── account/          # User management
+│       │   ├── database/         # Database backends
+│       │   ├── quiz_history/     # RAG history storage
+│       │   ├── exam/            # Exam management
+│       │   ├── immersive_exam/  # Immersive exam management
+│       │   ├── teacher/         # Teacher feedback service
+│       │   ├── mistake_review/  # Mistake review service
+│       │   ├── agent/           # RAG bot logic
+│       │   └── agent_management/ # Agent configuration
+│       └── web_ui/              # Flask web interface
+│           ├── app.py          # Web application
+│           └── templates/      # HTML templates
+│               ├── immersive_exam_create.html
+│               ├── immersive_exam_live.html
+│               ├── immersive_exam_results.html
+│               └── mistake_review.html
 ├── docs/                   # Documentation
 └── tests/                 # Test files
     ├── test_basic.py
     ├── test_teacher_service.py
     ├── test_immersive_exam.py
-    └── test_mistake_review.py          # (NEW)
+    └── test_mistake_review.py
 ```
 
 ### Adding New Features
 
-1. **New Question Type**: Modify `gradeschoolmathsolver/services/qa_generation/service.py`
-2. **New Category**: Add to `gradeschoolmathsolver/config.py` QUESTION_CATEGORIES
-3. **New Agent Strategy**: Extend `gradeschoolmathsolver/services/agent/service.py`
-4. **New UI Page**: Add template to `gradeschoolmathsolver/web_ui/templates/`
+1. **New Question Type**: Modify `src/gradeschoolmathsolver/services/qa_generation/service.py`
+2. **New Category**: Add to `src/gradeschoolmathsolver/config.py` QUESTION_CATEGORIES
+3. **New Agent Strategy**: Extend `src/gradeschoolmathsolver/services/agent/service.py`
+4. **New UI Page**: Add template to `src/gradeschoolmathsolver/web_ui/templates/`
 
 ## 🐛 Troubleshooting
 
