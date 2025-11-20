@@ -1,6 +1,6 @@
-# GitHub Releases and Docker Hub Publishing
+# GitHub Releases, Docker Hub Publishing, and PyPI Publishing
 
-This document describes the automated release and Docker publishing workflows for the GradeSchoolMathSolver-RAG project.
+This document describes the automated release, Docker publishing, and PyPI publishing workflows for the GradeSchoolMathSolver-RAG project.
 
 ## Overview
 
@@ -8,6 +8,7 @@ The project uses GitHub Actions to automate:
 1. **Milestone-Based Tagging** - Automatically creates tags when milestones are closed
 2. **GitHub Releases** - Automatically created when tags are pushed
 3. **Docker Hub Publishing** - Multi-platform Docker images built and published on releases
+4. **PyPI Publishing** - Python package built and published to PyPI on releases
 
 ## Workflows
 
@@ -62,7 +63,7 @@ Once the tag is created, it automatically triggers the Release and Docker Publis
 - Link to README for the specific version
 - List of new contributors (if any)
 
-### 2. Docker Hub Publish Workflow (`.github/workflows/docker-publish.yml`)
+### 3. Docker Hub Publish Workflow (`.github/workflows/docker-publish.yml`)
 
 **What it does**:
 - Builds multi-platform Docker images (linux/amd64, linux/arm64)
@@ -90,6 +91,30 @@ Once the tag is created, it automatically triggers the Release and Docker Publis
 - Credentials handled securely via GitHub Secrets
 - JWT token-based authentication
 
+### 4. PyPI Publish Workflow (`.github/workflows/pypi-publish.yml`)
+
+**What it does**:
+- Builds Python package using `pyproject.toml`
+- Creates source distribution (sdist) and wheel distribution
+- Publishes package to PyPI using official PyPA GitHub Action
+- Uses API token authentication for secure publishing
+
+**Trigger**: 
+- Pushing semantic version tags (e.g., `v1.0.0`, `v2.1.3`) **on the default branch (main)**
+- Automatically triggered by the Milestone Tag Workflow
+- Tags not on the default branch will be skipped
+- **Runs in the `prod` environment** (may require approval if environment protection rules are configured)
+
+**Package metadata**:
+- Version, description, and dependencies from `pyproject.toml`
+- Automatic inclusion of README.md as long description
+- License information from LICENSE file
+
+**Security**:
+- Uses official PyPA publish action (pypa/gh-action-pypi-publish)
+- Token-based authentication via GitHub Secrets
+- No credentials exposed in logs
+
 ## Setup Instructions
 
 ### Quick Validation
@@ -108,8 +133,9 @@ This script checks:
 
 ### Prerequisites
 
-1. **Docker Hub Account**: You need a Docker Hub account to publish images
-2. **Repository Access**: Admin access to the GitHub repository to set up secrets
+1. **Docker Hub Account**: You need a Docker Hub account to publish Docker images
+2. **PyPI Account**: You need a PyPI account to publish Python packages
+3. **Repository Access**: Admin access to the GitHub repository to set up secrets
 
 ### Step 1: Create Docker Hub Access Token
 
@@ -118,7 +144,24 @@ This script checks:
 3. Create a token with **Read, Write, Delete** permissions
 4. Save the token securely (you won't be able to see it again)
 
-### Step 2: Configure GitHub Secrets
+### Step 2: Create PyPI API Token
+
+1. Log in to [PyPI](https://pypi.org/)
+2. Go to **Account settings** → **API tokens**
+3. Click **Add API token**
+4. Set the token name (e.g., "GradeSchoolMathSolver-RAG GitHub Actions")
+5. Choose scope:
+   - **Entire account** (if first time publishing this package)
+   - **Project: gradeschoolmathsolver** (if package already exists, more secure)
+6. Click **Add token**
+7. Copy the token (it starts with `pypi-`) and save it securely
+
+**Important**: After the first successful publication, you should:
+1. Delete the account-scoped token
+2. Create a new project-scoped token for `gradeschoolmathsolver`
+3. Update the GitHub secret with the new token
+
+### Step 3: Configure GitHub Secrets
 
 Add the following secrets to your GitHub repository:
 
@@ -130,8 +173,11 @@ Add the following secrets to your GitHub repository:
 |-------------|-------------|---------|
 | `DOCKERHUB_USERNAME` | Your Docker Hub username | `yangzq50` |
 | `DOCKERHUB_TOKEN` | Docker Hub access token from Step 1 | `dckr_pat_...` |
+| `PYPI_TOKEN` | PyPI API token from Step 2 | `pypi-...` |
 
-### Step 3: Verify Dockerfile
+### Step 4: Verify Packaging Configuration
+
+Ensure your `pyproject.toml` is properly configured:
 
 Ensure your `Dockerfile` is properly configured:
 - ✅ Multi-stage build for smaller images
@@ -141,6 +187,57 @@ Ensure your `Dockerfile` is properly configured:
 - ✅ Entry point defined
 
 The existing `Dockerfile` already meets these requirements.
+
+## Package Maintenance
+
+### Updating pyproject.toml
+
+The `pyproject.toml` file contains all package metadata and configuration. When making changes:
+
+**Version Updates**:
+```toml
+[project]
+version = "1.0.0"  # Update this for each release
+```
+
+**Dependencies**:
+```toml
+dependencies = [
+    "flask==3.1.2",
+    # Add or update dependencies here
+]
+```
+
+**Optional Dependencies**:
+```toml
+[project.optional-dependencies]
+dev = [
+    "pytest==9.0.1",
+    # Add development dependencies here
+]
+```
+
+**Building Locally**:
+```bash
+# Install build tool
+pip install build
+
+# Build distributions
+python -m build
+
+# This creates:
+# - dist/gradeschoolmathsolver-1.0.0.tar.gz (source distribution)
+# - dist/gradeschoolmathsolver-1.0.0-py3-none-any.whl (wheel distribution)
+```
+
+**Testing Before Release**:
+```bash
+# Install in development mode for testing
+pip install -e .
+
+# Or install from built wheel
+pip install dist/gradeschoolmathsolver-1.0.0-py3-none-any.whl
+```
 
 ## Creating a Release
 
@@ -191,7 +288,7 @@ git push origin v1.0.0
 
 When you close a milestone with a matching pattern or push a tag matching `v*.*.*`:
 
-> **Important**: Both the Release and Docker Publish workflows will only execute if the tag is on the default branch (main). Tags created on other branches will be ignored.
+> **Important**: All workflows (Release, Docker Publish, and PyPI Publish) will only execute if the tag is on the default branch (main). Tags created on other branches will be ignored.
 
 1. **Milestone Tag Workflow** triggers (if using milestone):
    - Parses milestone title
@@ -211,6 +308,13 @@ When you close a milestone with a matching pattern or push a tag matching `v*.*.
    - Pushes to Docker Hub with multiple tags
    - Updates Docker Hub description
    - Takes ~5-10 minutes (first build), ~2-3 minutes (subsequent builds with cache)
+
+4. **PyPI Publish Workflow** triggers:
+   - Verifies the tag is on the default branch (main)
+   - Runs in the `prod` environment
+   - Builds Python package (sdist and wheel)
+   - Publishes to PyPI
+   - Takes ~1-2 minutes
 
 ## Semantic Versioning
 
@@ -252,6 +356,26 @@ docker pull yangzq50/gradeschoolmathsolver-rag:1
 # Latest release
 docker pull yangzq50/gradeschoolmathsolver-rag:latest
 ```
+
+### Installing from PyPI
+
+```bash
+# Install the latest version
+pip install gradeschoolmathsolver
+
+# Install a specific version
+pip install gradeschoolmathsolver==1.0.0
+
+# Upgrade to the latest version
+pip install --upgrade gradeschoolmathsolver
+
+# Install with development dependencies
+pip install gradeschoolmathsolver[dev]
+```
+
+After installation, the package provides:
+- Command-line tool: `gradeschoolmathsolver`
+- Python module: `import gradeschoolmathsolver`
 
 ## Customization
 
@@ -295,12 +419,28 @@ body: |
 
 ## Troubleshooting
 
-### Build Fails: "denied: requested access to the resource is denied"
+### Docker Build Fails: "denied: requested access to the resource is denied"
 
 **Solution**: Verify Docker Hub credentials in GitHub Secrets
 - Check `DOCKERHUB_USERNAME` is correct
 - Verify `DOCKERHUB_TOKEN` is valid and has Read/Write/Delete permissions
 - Ensure the token hasn't expired
+
+### PyPI Publish Fails: "403 Forbidden"
+
+**Solution**: Verify PyPI token in GitHub Secrets
+- Check `PYPI_TOKEN` is correct and starts with `pypi-`
+- Verify the token has the correct scope (entire account or project-scoped)
+- For first-time publishing, use an account-scoped token
+- After first publish, switch to a project-scoped token for better security
+- Ensure the token hasn't been revoked
+
+### PyPI Publish Fails: "400 Bad Request - File already exists"
+
+**Solution**: Version number already published
+- PyPI doesn't allow re-uploading the same version
+- Update the version in `pyproject.toml`
+- Create a new release tag with the updated version
 
 ### Build is Slow
 
@@ -339,22 +479,39 @@ body: |
 2. Check **Tags** tab for new version tags
 3. Verify **Overview** tab description matches README.md
 
+### Verifying PyPI Publication
+
+1. Visit `https://pypi.org/project/gradeschoolmathsolver/`
+2. Check that the new version is listed
+3. Verify package metadata (description, homepage, license)
+4. Test installation: `pip install gradeschoolmathsolver==<version>`
+
 ## Best Practices
 
 1. **Test Before Release**: Always test your changes before creating a release tag
 2. **Use Pre-releases**: For testing, create pre-release tags (e.g., `v1.0.0-beta.1`)
 3. **Semantic Versioning**: Follow semantic versioning strictly
-4. **Changelog**: Maintain a CHANGELOG.md file for detailed release notes
-5. **Security**: Never commit Docker Hub credentials to the repository
-6. **Tag Protection**: Consider protecting release tags in GitHub settings
+4. **Update Version**: Always update version in `pyproject.toml` before tagging
+5. **Changelog**: Maintain a CHANGELOG.md file for detailed release notes
+6. **Security**: Never commit credentials (Docker Hub tokens, PyPI tokens) to the repository
+7. **Tag Protection**: Consider protecting release tags in GitHub settings
+8. **Test Locally**: Build and test the package locally before releasing:
+   ```bash
+   python -m build
+   pip install dist/gradeschoolmathsolver-*.whl
+   gradeschoolmathsolver --help
+   ```
 
 ## Security Considerations
 
-- Docker Hub tokens are stored securely in GitHub Secrets
+- Docker Hub and PyPI tokens are stored securely in GitHub Secrets
 - Tokens are never exposed in logs or outputs
-- Use scoped tokens with minimal necessary permissions
+- Use scoped tokens with minimal necessary permissions:
+  - PyPI: Use project-scoped tokens after first publish
+  - Docker Hub: Use tokens with only required permissions
 - Rotate tokens periodically (recommended every 6-12 months)
-- Enable two-factor authentication on Docker Hub
+- Enable two-factor authentication on Docker Hub and PyPI
+- Review GitHub Actions logs to ensure no credentials are leaked
 
 ## Additional Resources
 
@@ -363,3 +520,7 @@ body: |
 - [Semantic Versioning Specification](https://semver.org/)
 - [Docker Build and Push Action](https://github.com/docker/build-push-action)
 - [OCI Image Spec](https://github.com/opencontainers/image-spec/blob/main/annotations.md)
+- [PyPI Publishing Documentation](https://packaging.python.org/en/latest/tutorials/packaging-projects/)
+- [PyPA Publish Action](https://github.com/pypa/gh-action-pypi-publish)
+- [Python Packaging User Guide](https://packaging.python.org/)
+- [pyproject.toml Specification](https://packaging.python.org/en/latest/specifications/pyproject-toml/)

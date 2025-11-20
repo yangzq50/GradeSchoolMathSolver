@@ -3,10 +3,13 @@
 [![CI](https://github.com/yangzq50/GradeSchoolMathSolver-RAG/actions/workflows/ci.yml/badge.svg)](https://github.com/yangzq50/GradeSchoolMathSolver-RAG/actions/workflows/ci.yml)
 [![Release](https://github.com/yangzq50/GradeSchoolMathSolver-RAG/actions/workflows/release.yml/badge.svg)](https://github.com/yangzq50/GradeSchoolMathSolver-RAG/actions/workflows/release.yml)
 [![Docker Publish](https://github.com/yangzq50/GradeSchoolMathSolver-RAG/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/yangzq50/GradeSchoolMathSolver-RAG/actions/workflows/docker-publish.yml)
+[![PyPI Publish](https://github.com/yangzq50/GradeSchoolMathSolver-RAG/actions/workflows/pypi-publish.yml/badge.svg)](https://github.com/yangzq50/GradeSchoolMathSolver-RAG/actions/workflows/pypi-publish.yml)
+[![PyPI version](https://badge.fury.io/py/gradeschoolmathsolver.svg)](https://badge.fury.io/py/gradeschoolmathsolver)
 
 An AI-powered Grade School Math Solver with RAG (Retrieval-Augmented Generation). Automatically generates arithmetic problems, tracks correct and incorrect answers, and provides personalized practice and exams. Ideal for learning, testing, and building adaptive math tutoring agents.
 
 **📦 Docker Hub**: [yangzq50/gradeschoolmathsolver-rag](https://hub.docker.com/r/yangzq50/gradeschoolmathsolver-rag)
+**📦 PyPI**: [gradeschoolmathsolver](https://pypi.org/project/gradeschoolmathsolver/)
 
 ![Homepage](https://github.com/user-attachments/assets/7e8d6f0d-c8af-4170-be71-77402945fe14)
 
@@ -605,8 +608,7 @@ User/Agent Request → Exam Service → QA Generation Service → Questions
 
 ```
 GradeSchoolMathSolver-RAG/
-├── setup.py                     # Package installation script
-├── MANIFEST.in                  # Package manifest
+├── pyproject.toml               # Package configuration and metadata
 ├── requirements.txt             # Python dependencies
 ├── docker-compose.yml           # Docker setup
 ├── Dockerfile                   # Multi-stage web app container
@@ -753,16 +755,17 @@ For detailed troubleshooting, see [MariaDB Integration Documentation](docs/MARIA
 
 3. Restart application to recreate tables
 
-## 📦 Releases and Docker Publishing
+## 📦 Releases and Publishing
 
-This project uses automated GitHub Actions workflows to create releases and publish Docker images.
+This project uses automated GitHub Actions workflows to create releases and publish packages.
 
 ### Creating a Release
 
 To create a new release:
 
 1. Ensure all changes are committed and pushed to the main branch
-2. Create and push a semantic version tag:
+2. Update the version in `pyproject.toml`
+3. Create and push a semantic version tag:
    ```bash
    git tag -a v1.0.0 -m "Release version 1.0.0"
    git push origin v1.0.0
@@ -771,22 +774,25 @@ To create a new release:
 This will automatically:
 - Create a GitHub release with auto-generated release notes
 - Build and publish multi-platform Docker images to Docker Hub
+- Build and publish the Python package to PyPI
 - Tag the Docker image with version numbers (e.g., `1.0.0`, `1.0`, `1`, `latest`)
 
-### Docker Hub Images
+### Installation Options
 
-Pre-built Docker images are available at:
-- **Repository**: [yangzq50/gradeschoolmathsolver-rag](https://hub.docker.com/r/yangzq50/gradeschoolmathsolver-rag)
-- **Tags**: Each release creates multiple tags for flexibility
-  - `1.0.0` - Specific version (recommended for production)
-  - `1.0` - Latest patch version
-  - `1` - Latest minor version
-  - `latest` - Latest release
+**From PyPI (Recommended for Python users)**:
+```bash
+pip install gradeschoolmathsolver
+```
+
+**From Docker Hub (Recommended for quick start)**:
+```bash
+docker pull yangzq50/gradeschoolmathsolver-rag:latest
+```
 
 ### For Maintainers
 
 Detailed instructions for setting up and customizing the release workflows:
-- [Release Workflow Documentation](docs/RELEASE_WORKFLOW.md) - Complete guide for GitHub releases and Docker Hub publishing
+- [Release Workflow Documentation](docs/RELEASE_WORKFLOW.md) - Complete guide for GitHub releases, Docker Hub publishing, and PyPI publishing
 
 ## 📝 License
 
