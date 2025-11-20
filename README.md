@@ -3,10 +3,13 @@
 [![CI](https://github.com/yangzq50/GradeSchoolMathSolver-RAG/actions/workflows/ci.yml/badge.svg)](https://github.com/yangzq50/GradeSchoolMathSolver-RAG/actions/workflows/ci.yml)
 [![Release](https://github.com/yangzq50/GradeSchoolMathSolver-RAG/actions/workflows/release.yml/badge.svg)](https://github.com/yangzq50/GradeSchoolMathSolver-RAG/actions/workflows/release.yml)
 [![Docker Publish](https://github.com/yangzq50/GradeSchoolMathSolver-RAG/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/yangzq50/GradeSchoolMathSolver-RAG/actions/workflows/docker-publish.yml)
+[![PyPI Publish](https://github.com/yangzq50/GradeSchoolMathSolver-RAG/actions/workflows/pypi-publish.yml/badge.svg)](https://github.com/yangzq50/GradeSchoolMathSolver-RAG/actions/workflows/pypi-publish.yml)
+[![PyPI version](https://badge.fury.io/py/gradeschoolmathsolver.svg)](https://badge.fury.io/py/gradeschoolmathsolver)
 
 An AI-powered Grade School Math Solver with RAG (Retrieval-Augmented Generation). Automatically generates arithmetic problems, tracks correct and incorrect answers, and provides personalized practice and exams. Ideal for learning, testing, and building adaptive math tutoring agents.
 
 **📦 Docker Hub**: [yangzq50/gradeschoolmathsolver-rag](https://hub.docker.com/r/yangzq50/gradeschoolmathsolver-rag)
+**📦 PyPI**: [gradeschoolmathsolver](https://pypi.org/project/gradeschoolmathsolver/)
 
 ![Homepage](https://github.com/user-attachments/assets/7e8d6f0d-c8af-4170-be71-77402945fe14)
 
@@ -135,7 +138,17 @@ docker pull yangzq50/gradeschoolmathsolver-rag:1.0.0
 
 Then use with `docker-compose.yml` by modifying the web service to use the pre-built image instead of building locally.
 
-#### Option 2: Install from Source
+#### Option 2: Install from PyPI (Easiest)
+
+Install the package directly from PyPI:
+
+```bash
+pip install gradeschoolmathsolver
+```
+
+This will install the latest stable release with all dependencies.
+
+#### Option 3: Install from Source
 
 1. **Clone the repository**
    ```bash
@@ -145,14 +158,14 @@ Then use with `docker-compose.yml` by modifying the web service to use the pre-b
 
 2. **Install the package**
    
-   The project is now structured as a proper Python package for better maintainability.
+   The project uses `pyproject.toml` for modern Python packaging.
    
-   **Option 1: Install as a package (recommended)**
+   **Install as a package (recommended)**
    ```bash
    pip install .
    ```
    
-   **Option 2: Install in development mode**
+   **Install in development mode**
    ```bash
    pip install -e .
    ```
