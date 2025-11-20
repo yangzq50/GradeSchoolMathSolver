@@ -11,7 +11,7 @@ An AI-powered Grade School Math Solver with RAG (Retrieval-Augmented Generation)
 **📦 Docker Hub**: [yangzq50/gradeschoolmathsolver](https://hub.docker.com/r/yangzq50/gradeschoolmathsolver)
 **📦 PyPI**: [gradeschoolmathsolver](https://pypi.org/project/gradeschoolmathsolver/)
 
-![Homepage](https://github.com/user-attachments/assets/7e8d6f0d-c8af-4170-be71-77402945fe14)
+![Homepage](https://github.com/user-attachments/assets/502a52cd-6b1a-4cc3-9995-1afe137255e4)
 
 ## 🎯 Features
 
