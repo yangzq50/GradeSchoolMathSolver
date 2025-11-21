@@ -20,6 +20,7 @@ An AI-powered Grade School Math Solver with RAG (Retrieval-Augmented Generation)
 - **Question Classification**: Categorize questions by type (addition, subtraction, multiplication, etc.)
 - **User Management**: Track user progress, answer history, and performance statistics
 - **Quiz History with RAG**: Store and retrieve similar questions using vector search for personalized learning
+- **Embedding Service**: Generate semantic embeddings for questions to enable advanced RAG capabilities
 - **Database Flexibility**: Choose between MariaDB (default) or Elasticsearch based on your needs
 - **Intelligent RAG bots**: Configurable RAG bots that can use classification and RAG for better problem-solving
 - **Web Interface**: User-friendly Flask-based web UI for taking exams and viewing statistics
@@ -31,13 +32,20 @@ An AI-powered Grade School Math Solver with RAG (Retrieval-Augmented Generation)
 
 ## 🏗️ Architecture
 
-The system consists of 12 main components:
+The system consists of 13 main components:
 
 ### 0. AI Model Service
 - Uses Docker Desktop models via localhost endpoint (port 12434)
 - Provides natural language generation for questions and reasoning
 - OpenAI-compatible chat/completions API format
 - See [AI Model Service Documentation](docs/AI_MODEL_SERVICE.md)
+
+### 0.5. Embedding Service
+- Generates vector embeddings using EmbeddingGemma model (ai/embeddinggemma:300M-Q8_0)
+- Foundation for RAG (Retrieval-Augmented Generation) capabilities
+- Enables semantic similarity search for questions
+- Docker Model Runner integration via OpenAI-compatible API
+- See [Embedding Service Documentation](docs/EMBEDDING_SERVICE.md)
 
 ### 1. QA Generation Service
 - Generates mathematical equations based on difficulty level
@@ -123,6 +131,10 @@ The system consists of 12 main components:
 - MariaDB or Elasticsearch for database (MariaDB recommended, included in Docker setup)
 - 8GB+ RAM recommended (16GB+ recommended for larger models)
 
+**Required Models for Full Functionality:**
+- **LLM Model**: `ai/llama3.2:1B-Q4_0` (for question generation and reasoning)
+- **Embedding Model**: `ai/embeddinggemma:300M-Q8_0` (for RAG and semantic search)
+
 ### Installation
 
 #### Option 1: Using Pre-built Docker Image (Recommended for Production)
@@ -205,7 +217,8 @@ This will install the latest stable release with all dependencies.
    c. **Download AI Models**
       - In Docker Desktop, navigate to the **AI Models** section (or **Models** tab)
       - Search for and pull `llama3.2:1B-Q4_0` (or your preferred model)
-      - Wait for the model to download and become ready
+      - Search for and pull `embeddinggemma:300M-Q8_0` (for embedding/RAG features)
+      - Wait for the models to download and become ready
    
    d. **Verify Docker Model Runner is working**
       ```bash
@@ -218,6 +231,14 @@ This will install the latest stable release with all dependencies.
         -d '{
           "model": "ai/llama3.2:1B-Q4_0",
           "messages": [{"role": "user", "content": "What is 2+2?"}]
+        }'
+      
+      # Test embeddings generation
+      curl http://localhost:12434/engines/llama.cpp/v1/embeddings \
+        -H "Content-Type: application/json" \
+        -d '{
+          "model": "ai/embeddinggemma:300M-Q8_0",
+          "input": ["What is 2+2?"]
         }'
       ```
    
@@ -521,6 +542,9 @@ python -m gradeschoolmathsolver.services.teacher.service
 # Test Mistake Review Service
 python -m gradeschoolmathsolver.services.mistake_review.service
 
+# Test Embedding Service
+python -m gradeschoolmathsolver.services.embedding.service
+
 # Run all tests with pytest
 pytest tests/ -v
 
@@ -529,6 +553,7 @@ pytest tests/test_basic.py -v
 pytest tests/test_teacher_service.py -v
 pytest tests/test_immersive_exam.py -v
 pytest tests/test_mistake_review.py -v
+pytest tests/test_embedding_service.py -v
 ```
 
 ## 🔧 Configuration
@@ -550,6 +575,8 @@ Key settings:
 - `AI_MODEL_URL`: URL of the AI model service (e.g., http://localhost:12434)
 - `AI_MODEL_NAME`: Name of the model to use (e.g., ai/llama3.2:1B-Q4_0)
 - `LLM_ENGINE`: LLM engine to use (e.g., llama.cpp)
+- `EMBEDDING_MODEL_URL`: URL of the embedding service (e.g., http://localhost:12434)
+- `EMBEDDING_MODEL_NAME`: Name of the embedding model (e.g., ai/embeddinggemma:300M-Q8_0)
 - `DATABASE_BACKEND`: Database backend (mariadb or elasticsearch, default: mariadb)
 - `MARIADB_HOST`: MariaDB hostname (default: localhost)
 - `MARIADB_PORT`: MariaDB port (default: 3306)
@@ -623,6 +650,8 @@ User/Agent Request → Exam Service → QA Generation Service → Questions
                      Agent Service (optional) → AI Model
                            ↓           ↓
                     Quiz History ← RAG Search
+                           ↓           ↑
+                   Embedding Service (for semantic search)
                            ↓
                    Account Service → Statistics
                            ↓
@@ -655,6 +684,7 @@ GradeSchoolMathSolver/
 │       │   ├── immersive_exam/  # Immersive exam management
 │       │   ├── teacher/         # Teacher feedback service
 │       │   ├── mistake_review/  # Mistake review service
+│       │   ├── embedding/       # Embedding service for RAG
 │       │   ├── agent/           # RAG bot logic
 │       │   └── agent_management/ # Agent configuration
 │       └── web_ui/              # Flask web interface
@@ -665,11 +695,15 @@ GradeSchoolMathSolver/
 │               ├── immersive_exam_results.html
 │               └── mistake_review.html
 ├── docs/                   # Documentation
+│   ├── AI_MODEL_SERVICE.md
+│   ├── EMBEDDING_SERVICE.md
+│   └── ...
 └── tests/                 # Test files
     ├── test_basic.py
     ├── test_teacher_service.py
     ├── test_immersive_exam.py
-    └── test_mistake_review.py
+    ├── test_mistake_review.py
+    └── test_embedding_service.py
 ```
 
 ### Adding New Features
