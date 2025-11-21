@@ -3,6 +3,7 @@
 [![CI](https://github.com/yangzq50/GradeSchoolMathSolver/actions/workflows/ci.yml/badge.svg)](https://github.com/yangzq50/GradeSchoolMathSolver/actions/workflows/ci.yml)
 [![Release](https://github.com/yangzq50/GradeSchoolMathSolver/actions/workflows/release.yml/badge.svg)](https://github.com/yangzq50/GradeSchoolMathSolver/actions/workflows/release.yml)
 [![Docker Publish](https://github.com/yangzq50/GradeSchoolMathSolver/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/yangzq50/GradeSchoolMathSolver/actions/workflows/docker-publish.yml)
+<a href="https://hub.docker.com/r/yangzq50/gradeschoolmathsolver"><img src="https://img.shields.io/docker/v/yangzq50/gradeschoolmathsolver/latest"></a>
 [![PyPI Publish](https://github.com/yangzq50/GradeSchoolMathSolver/actions/workflows/pypi-publish.yml/badge.svg)](https://github.com/yangzq50/GradeSchoolMathSolver/actions/workflows/pypi-publish.yml)
 [![PyPI version](https://badge.fury.io/py/gradeschoolmathsolver.svg)](https://badge.fury.io/py/gradeschoolmathsolver)
 
