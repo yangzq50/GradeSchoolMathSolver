@@ -67,22 +67,28 @@ class Config:
     AI_MODEL_URL = os.getenv('AI_MODEL_URL', 'http://localhost:12434')
     AI_MODEL_NAME = os.getenv('AI_MODEL_NAME', 'ai/llama3.2:1B-Q4_0')
     LLM_ENGINE = os.getenv('LLM_ENGINE', 'llama.cpp')
-    
+
     # New configurable service endpoints
+    _default_base_url = os.getenv('AI_MODEL_URL', 'http://localhost:12434')
+    _default_engine = os.getenv('LLM_ENGINE', 'llama.cpp')
     GENERATION_SERVICE_URL = os.getenv(
         'GENERATION_SERVICE_URL',
-        f"{os.getenv('AI_MODEL_URL', 'http://localhost:12434')}/engines/{os.getenv('LLM_ENGINE', 'llama.cpp')}/v1/chat/completions"
+        f"{_default_base_url}/engines/{_default_engine}/v1/chat/completions"
     )
-    GENERATION_MODEL_NAME = os.getenv('GENERATION_MODEL_NAME', os.getenv('AI_MODEL_NAME', 'ai/llama3.2:1B-Q4_0'))
+    GENERATION_MODEL_NAME = os.getenv(
+        'GENERATION_MODEL_NAME',
+        os.getenv('AI_MODEL_NAME', 'ai/llama3.2:1B-Q4_0')
+    )
 
     # Embedding Service Configuration
     EMBEDDING_MODEL_URL = os.getenv('EMBEDDING_MODEL_URL', 'http://localhost:12434')
     EMBEDDING_MODEL_NAME = os.getenv('EMBEDDING_MODEL_NAME', 'ai/embeddinggemma:300M-Q8_0')
-    
+
     # New configurable embedding endpoint
+    _default_embed_url = os.getenv('EMBEDDING_MODEL_URL', 'http://localhost:12434')
     EMBEDDING_SERVICE_URL = os.getenv(
         'EMBEDDING_SERVICE_URL',
-        f"{os.getenv('EMBEDDING_MODEL_URL', 'http://localhost:12434')}/engines/{os.getenv('LLM_ENGINE', 'llama.cpp')}/v1/embeddings"
+        f"{_default_embed_url}/engines/{_default_engine}/v1/embeddings"
     )
 
     # Database Backend Selection

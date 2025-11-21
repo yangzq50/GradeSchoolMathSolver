@@ -23,14 +23,14 @@ Example Usage:
             {"role": "user", "content": "What is 2+2?"}
         ]
     )
-    
+
     # Generate embeddings
     embedding = generate_embedding("What is 5 + 3?")
-    
+
     # Generate batch embeddings
     embeddings = generate_embeddings_batch(["Question 1", "Question 2"])
 """
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional, Dict
 import logging
 import requests
 from requests.exceptions import RequestException, Timeout
@@ -53,20 +53,20 @@ def generate_text_completion(
 ) -> Optional[str]:
     """
     Generate text completion using the configured LLM service.
-    
+
     This is the single entry point for all text generation requests in the system.
     It handles retries, error handling, and provides a consistent interface.
-    
+
     Args:
         messages: List of message dicts with 'role' and 'content' keys
                  following OpenAI chat format
         max_retries: Maximum number of retry attempts (default: 3)
         timeout: Request timeout in seconds (default: 30)
         **kwargs: Additional parameters to pass to the model API
-        
+
     Returns:
         Generated text content, or None if generation fails after all retries
-        
+
     Example:
         >>> messages = [
         ...     {"role": "system", "content": "You are a math teacher."},
@@ -77,18 +77,18 @@ def generate_text_completion(
         "5 + 3 equals 8"
     """
     config = Config()
-    
+
     if not messages or not isinstance(messages, list):
         logger.warning("Invalid input: messages must be a non-empty list")
         return None
-    
+
     # Prepare request payload
     payload = {
         "model": config.GENERATION_MODEL_NAME,
         "messages": messages,
         **kwargs
     }
-    
+
     # Try with retries
     for attempt in range(max_retries):
         try:
@@ -97,7 +97,7 @@ def generate_text_completion(
                 json=payload,
                 timeout=timeout
             )
-            
+
             if response.status_code == 200:
                 result = response.json()
                 choices = result.get('choices', [])
@@ -109,16 +109,16 @@ def generate_text_completion(
                 logger.warning(
                     f"Text generation request failed with status {response.status_code}: {response.text}"
                 )
-                
+
         except (Timeout, RequestException) as e:
             logger.warning(f"Text generation attempt {attempt + 1}/{max_retries} failed: {e}")
-            
+
         except Exception as e:
             logger.error(f"Unexpected error in text generation: {e}")
-            
+
         if attempt < max_retries - 1:
             logger.info(f"Retrying text generation ({attempt + 1}/{max_retries})...")
-    
+
     logger.warning(f"Failed to generate text completion after {max_retries} attempts")
     return None
 
@@ -130,18 +130,18 @@ def generate_embedding(
 ) -> Optional[List[float]]:
     """
     Generate embedding vector for a single text input.
-    
+
     This is the single entry point for single text embedding requests.
     It converts text into a dense vector representation that captures semantic meaning.
-    
+
     Args:
         text: Text string to embed
         max_retries: Maximum number of retry attempts (default: 3)
         timeout: Request timeout in seconds (default: 30)
-        
+
     Returns:
         Embedding vector (list of floats), or None if generation fails after all retries
-        
+
     Example:
         >>> embedding = generate_embedding("What is 5 + 3?")
         >>> print(len(embedding))
@@ -150,13 +150,13 @@ def generate_embedding(
     if not text or not isinstance(text, str):
         logger.warning("Invalid input: text must be a non-empty string")
         return None
-    
+
     # Use batch function for single text
     embeddings = generate_embeddings_batch([text], max_retries=max_retries, timeout=timeout)
-    
+
     if embeddings and len(embeddings) > 0 and embeddings[0] is not None:
         return embeddings[0]
-    
+
     return None
 
 
@@ -167,23 +167,23 @@ def generate_embeddings_batch(
 ) -> List[Optional[List[float]]]:
     """
     Generate embeddings for multiple texts in a single API call.
-    
+
     This is the single entry point for batch embedding requests.
     It's more efficient than calling generate_embedding() multiple times.
-    
+
     Note: Empty or invalid strings are preserved in the output as None values
     to maintain index correspondence with the input list.
-    
+
     Args:
         texts: List of text strings to embed
         max_retries: Maximum number of retry attempts (default: 3)
         timeout: Request timeout in seconds (default: 30)
-        
+
     Returns:
         List of embedding vectors (each is a list of floats).
         Returns None for any text that is empty, invalid, or failed to embed.
         The output list length matches the input list length.
-        
+
     Example:
         >>> texts = ["What is 5 + 3?", "", "Calculate 10 - 4"]
         >>> embeddings = generate_embeddings_batch(texts)
@@ -193,11 +193,11 @@ def generate_embeddings_batch(
         True
     """
     config = Config()
-    
+
     if not texts or not isinstance(texts, list):
         logger.warning("Invalid input: texts must be a non-empty list")
         return []
-    
+
     # Create index mapping and filter valid texts
     valid_indices = []
     valid_texts = []
@@ -205,11 +205,11 @@ def generate_embeddings_batch(
         if text and isinstance(text, str):
             valid_indices.append(i)
             valid_texts.append(text)
-    
+
     if not valid_texts:
         logger.warning("No valid texts to embed")
         return [None] * len(texts)
-    
+
     # Try with retries
     embeddings_result = None
     for attempt in range(max_retries):
@@ -222,7 +222,7 @@ def generate_embeddings_batch(
                 },
                 timeout=timeout
             )
-            
+
             if response.status_code == 200:
                 result = response.json()
                 data = result.get('data', [])
@@ -236,39 +236,39 @@ def generate_embeddings_batch(
                 logger.warning(
                     f"Embedding request failed with status {response.status_code}: {response.text}"
                 )
-                
+
         except (Timeout, RequestException) as e:
             logger.warning(f"Embedding attempt {attempt + 1}/{max_retries} failed: {e}")
-            
+
         except Exception as e:
             logger.error(f"Unexpected error in embedding generation: {e}")
-        
+
         if attempt < max_retries - 1:
             logger.info(f"Retrying embedding generation ({attempt + 1}/{max_retries})...")
-    
+
     # Create output list matching input size, with None for invalid/empty texts
     output: List[Optional[List[float]]] = [None] * len(texts)
-    
+
     if embeddings_result:
         # Map valid embeddings back to their original positions
         for valid_idx, embedding in zip(valid_indices, embeddings_result):
             output[valid_idx] = embedding
     else:
         logger.warning(f"Failed to generate batch embeddings after {max_retries} attempts")
-    
+
     return output
 
 
 def is_embedding_service_available() -> bool:
     """
     Check if the embedding service is available.
-    
+
     This makes a lightweight test call to verify the embedding model
     is accessible and responding.
-    
+
     Returns:
         True if service is available, False otherwise
-        
+
     Example:
         >>> if is_embedding_service_available():
         ...     embedding = generate_embedding("test")
@@ -283,13 +283,13 @@ def is_embedding_service_available() -> bool:
 def is_generation_service_available() -> bool:
     """
     Check if the text generation service is available.
-    
+
     This makes a lightweight test call to verify the generation model
     is accessible and responding.
-    
+
     Returns:
         True if service is available, False otherwise
-        
+
     Example:
         >>> if is_generation_service_available():
         ...     response = generate_text_completion(messages)
@@ -305,12 +305,12 @@ def is_generation_service_available() -> bool:
 def main():
     """
     Test the model access module.
-    
+
     This function demonstrates basic usage and can be used for manual testing.
     """
     print("Testing Model Access Module...")
     print("=" * 60)
-    
+
     # Test 1: Check generation service availability
     print("\n1. Checking if text generation service is available...")
     if is_generation_service_available():
@@ -318,7 +318,7 @@ def main():
     else:
         print("✗ Text generation service is NOT available")
         print("  Make sure the model service is running")
-    
+
     # Test 2: Check embedding service availability
     print("\n2. Checking if embedding service is available...")
     if is_embedding_service_available():
@@ -326,7 +326,7 @@ def main():
     else:
         print("✗ Embedding service is NOT available")
         print("  Make sure the embedding model is running")
-    
+
     # Test 3: Generate text completion
     print("\n3. Testing text completion generation...")
     messages = [
@@ -338,7 +338,7 @@ def main():
         print(f"✓ Generated response: {response[:100]}...")
     else:
         print("✗ Failed to generate text completion")
-    
+
     # Test 4: Generate single embedding
     print("\n4. Testing single embedding generation...")
     test_text = "What is 5 + 3?"
@@ -349,7 +349,7 @@ def main():
         print(f"  First 5 values: {embedding[:5]}")
     else:
         print(f"✗ Failed to generate embedding for: '{test_text}'")
-    
+
     # Test 5: Generate batch embeddings
     print("\n5. Testing batch embedding generation...")
     test_texts = [
@@ -365,7 +365,7 @@ def main():
                 print(f"  {i+1}. '{text}' -> {len(embeddings[i])} dimensions")
     else:
         print("✗ Failed to generate batch embeddings")
-    
+
     # Test 6: Test error handling
     print("\n6. Testing error handling...")
     invalid_embedding = generate_embedding("")
@@ -373,7 +373,7 @@ def main():
         print("✓ Correctly handled empty string input")
     else:
         print("✗ Should have returned None for empty string")
-    
+
     print("\n" + "=" * 60)
     print("Model access module testing complete!")
 
