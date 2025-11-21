@@ -1,0 +1,19 @@
+version: '3.8'
+
+# Development docker-compose configuration
+# This extends docker-compose.yml with development-specific overrides
+# Use: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  # Web Application (Development - builds from local source)
+  web:
+    build: .
+    image: gradeschoolmathsolver:dev-local
+    volumes:
+      # Mount source code for live development
+      - ./src:/app/src
+      # Override data mount to preserve production data separation
+      - ./data:/app/data
+    environment:
+      # Development-specific environment variables can be added here
+      - FLASK_DEBUG=True

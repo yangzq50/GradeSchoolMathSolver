@@ -40,9 +40,9 @@ services:
       - ""  # Default profile
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
 
-  # Web Application
+  # Web Application (Production - uses published Docker Hub image)
   web:
-    build: .
+    image: yangzq50/gradeschoolmathsolver:latest
     container_name: math-solver-web
     ports:
       - "5000:5000"
