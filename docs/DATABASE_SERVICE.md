@@ -141,8 +141,8 @@ ELASTICSEARCH_INDEX=quiz_history
 ```bash
 MARIADB_HOST=localhost
 MARIADB_PORT=3306
-MARIADB_USER=root
-MARIADB_PASSWORD=your_password
+MARIADB_USER=math_solver
+MARIADB_PASSWORD=math_solver_password
 MARIADB_DATABASE=math_solver
 ```
 
@@ -221,6 +221,32 @@ class AccountService:
 ```
 
 ## Docker Setup
+
+### Production Deployment (Default)
+
+The default `docker-compose.yml` uses the published Docker Hub image for easy production deployment:
+
+```bash
+# Start MariaDB
+docker-compose up -d mariadb
+
+# Start web application with MariaDB (uses published image from Docker Hub)
+docker-compose up -d
+```
+
+### Development Mode
+
+For local development with live code changes, use `docker-compose.dev.yml`:
+
+```bash
+# Start all services with local build and source mounting
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+```
+
+This will:
+- Build the web application from local source
+- Mount source code for live development
+- Enable Flask debug mode
 
 ### Using MariaDB (Default)
 

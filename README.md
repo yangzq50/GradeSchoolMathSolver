@@ -125,19 +125,22 @@ The system consists of 12 main components:
 
 ### Installation
 
-#### Option 1: Using Pre-built Docker Image (Recommended for Quick Start)
+#### Option 1: Using Pre-built Docker Image (Recommended for Production)
 
-Pull and run the latest Docker image from Docker Hub:
+The default `docker-compose.yml` uses the published Docker Hub image for easy deployment:
 
 ```bash
-# Pull the latest image
+# Pull the latest image (optional - docker-compose will pull automatically)
 docker pull yangzq50/gradeschoolmathsolver:latest
 
 # Or pull a specific version
 docker pull yangzq50/gradeschoolmathsolver:1.0.0
+
+# Start the application (see "Start the Application" section below)
+docker-compose up -d
 ```
 
-Then use with `docker-compose.yml` by modifying the web service to use the pre-built image instead of building locally.
+No need to modify `docker-compose.yml` - it now uses the published image by default.
 
 #### Option 2: Install from PyPI (Easiest)
 
@@ -223,11 +226,11 @@ This will install the latest stable release with all dependencies.
 
 5. **Start the Application**
 
-   You have two options for running the application:
+   You have three options for running the application:
 
-   **Option 1: Using Docker Compose (Recommended)**
+   **Option 1: Production Deployment (Recommended)**
    
-   This starts MariaDB, the web application, and optionally Elasticsearch in containers:
+   Uses the published Docker Hub image for production deployment:
    
    ```bash
    # Start with MariaDB (default, recommended)
@@ -237,6 +240,7 @@ This will install the latest stable release with all dependencies.
    The web app will be available at `http://localhost:5000`
    
    **What this does:**
+   - Pulls the latest image from Docker Hub (yangzq50/gradeschoolmathsolver:latest)
    - Starts MariaDB container on port 3306
    - Starts the web application container on port 5000
    - Web app connects to Docker Model Runner via `host.docker.internal:12434`
@@ -254,9 +258,24 @@ This will install the latest stable release with all dependencies.
    docker-compose down
    ```
 
-   **Option 2: Database in Docker + Web App Locally**
+   **Option 2: Development Mode**
    
-   If you prefer to run the web app locally (useful for development):
+   For local development with live code changes:
+   
+   ```bash
+   # Start with local build and source mounting
+   docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+   ```
+   
+   This will:
+   - Build the web application from local source
+   - Mount source code for live development
+   - Enable Flask debug mode
+   - Start MariaDB (or use `--profile elasticsearch` for Elasticsearch)
+
+   **Option 3: Database in Docker + Web App Locally**
+   
+   If you prefer to run the web app locally (useful for rapid development):
    
    a. Start only the database:
    ```bash
@@ -617,7 +636,8 @@ User/Agent Request → Exam Service → QA Generation Service → Questions
 ```
 GradeSchoolMathSolver/
 ├── pyproject.toml               # Package configuration and dependencies
-├── docker-compose.yml           # Docker setup
+├── docker-compose.yml           # Docker setup (production - uses Docker Hub image)
+├── docker-compose.dev.yml       # Docker setup (development - builds from source)
 ├── Dockerfile                   # Multi-stage web app container
 ├── .env.example                 # Environment template
 ├── src/                         # Source code
