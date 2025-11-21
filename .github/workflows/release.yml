@@ -82,7 +82,7 @@ jobs:
           
           ### Using pip
           \`\`\`bash
-          pip install git+https://github.com/${{ github.repository }}.git@${{ steps.version.outputs.tag }}
+          pip install gradeschoolmathsolver
           \`\`\`
           
           For more information, see the [README](https://github.com/${{ github.repository }}/blob/${{ steps.version.outputs.tag }}/README.md).
