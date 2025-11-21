@@ -39,10 +39,8 @@ from gradeschoolmathsolver.config import Config
 # Configure logging
 logger = logging.getLogger(__name__)
 
-
-class ModelAccessError(Exception):
-    """Exception raised when model access fails"""
-    pass
+# HTTP status codes
+HTTP_OK = 200
 
 
 def generate_text_completion(
@@ -98,7 +96,7 @@ def generate_text_completion(
                 timeout=timeout
             )
 
-            if response.status_code == 200:
+            if response.status_code == HTTP_OK:
                 result = response.json()
                 choices = result.get('choices', [])
                 if choices:
@@ -151,7 +149,8 @@ def generate_embedding(
         logger.warning("Invalid input: text must be a non-empty string")
         return None
 
-    # Use batch function for single text
+    # Use batch function for single text (intentional - provides consistent API
+    # and reuses the same retry/error handling logic without code duplication)
     embeddings = generate_embeddings_batch([text], max_retries=max_retries, timeout=timeout)
 
     if embeddings and len(embeddings) > 0 and embeddings[0] is not None:
@@ -223,7 +222,7 @@ def generate_embeddings_batch(
                 timeout=timeout
             )
 
-            if response.status_code == 200:
+            if response.status_code == HTTP_OK:
                 result = response.json()
                 data = result.get('data', [])
                 if data:
