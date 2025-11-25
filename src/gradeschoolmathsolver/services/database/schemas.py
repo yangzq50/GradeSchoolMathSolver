@@ -226,13 +226,16 @@ def get_embedding_fields_elasticsearch(
 
     Returns:
         Dict of field mappings for Elasticsearch
+
+    Raises:
+        ValueError: If dimensions list is empty
     """
+    if not dimensions:
+        raise ValueError("dimensions list cannot be empty")
+
     fields = {}
-    default_dim = 768  # Default dimension if dimensions list is empty
     for i, col_name in enumerate(column_names):
-        if not dimensions:
-            dim = default_dim
-        elif i < len(dimensions):
+        if i < len(dimensions):
             dim = dimensions[i]
         else:
             dim = dimensions[-1]
@@ -261,13 +264,16 @@ def get_embedding_columns_mariadb(
 
     Returns:
         Dict of column name to column definition
+
+    Raises:
+        ValueError: If dimensions list is empty
     """
+    if not dimensions:
+        raise ValueError("dimensions list cannot be empty")
+
     columns = {}
-    default_dim = 768  # Default dimension if dimensions list is empty
     for i, col_name in enumerate(column_names):
-        if not dimensions:
-            dim = default_dim
-        elif i < len(dimensions):
+        if i < len(dimensions):
             dim = dimensions[i]
         else:
             dim = dimensions[-1]
