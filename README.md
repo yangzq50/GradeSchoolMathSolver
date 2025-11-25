@@ -572,11 +572,20 @@ The system creates these default RAG bots:
 See `.env.example` for all available configuration options.
 
 Key settings:
-- `AI_MODEL_URL`: URL of the AI model service (e.g., http://localhost:12434)
+
+**Model Service Configuration (Recommended):**
+- `GENERATION_SERVICE_URL`: Full URL for text generation endpoint (e.g., http://localhost:12434/engines/llama.cpp/v1/chat/completions)
+- `GENERATION_MODEL_NAME`: Name of the generation model (e.g., ai/llama3.2:1B-Q4_0)
+- `EMBEDDING_SERVICE_URL`: Full URL for embedding endpoint (e.g., http://localhost:12434/engines/llama.cpp/v1/embeddings)
+- `EMBEDDING_MODEL_NAME`: Name of the embedding model (e.g., ai/embeddinggemma:300M-Q8_0)
+
+**Legacy Model Configuration (Backward Compatible):**
+- `AI_MODEL_URL`: Base URL of the AI model service (e.g., http://localhost:12434)
 - `AI_MODEL_NAME`: Name of the model to use (e.g., ai/llama3.2:1B-Q4_0)
 - `LLM_ENGINE`: LLM engine to use (e.g., llama.cpp)
-- `EMBEDDING_MODEL_URL`: URL of the embedding service (e.g., http://localhost:12434)
-- `EMBEDDING_MODEL_NAME`: Name of the embedding model (e.g., ai/embeddinggemma:300M-Q8_0)
+- `EMBEDDING_MODEL_URL`: Base URL of the embedding service (e.g., http://localhost:12434)
+
+**Database Configuration:**
 - `DATABASE_BACKEND`: Database backend (mariadb or elasticsearch, default: mariadb)
 - `MARIADB_HOST`: MariaDB hostname (default: localhost)
 - `MARIADB_PORT`: MariaDB port (default: 3306)
@@ -586,7 +595,19 @@ Key settings:
 - `ELASTICSEARCH_HOST`: Elasticsearch hostname (when using Elasticsearch)
 - `ELASTICSEARCH_PORT`: Elasticsearch port (when using Elasticsearch)
 - `ELASTICSEARCH_INDEX`: Index name for quiz history (default: quiz_history)
+
+**Feature Toggles:**
 - `TEACHER_SERVICE_ENABLED`: Enable/disable teacher feedback (default: True)
+
+**Model Access Module:**
+
+All model interactions are now centralized in the `model_access.py` module. This provides:
+- Configurable model endpoints (no need to hardcode service URLs)
+- Consistent error handling and retry logic
+- Single point of maintenance for model API calls
+- Easier testing and mocking
+
+See [Model Access Documentation](docs/MODEL_ACCESS.md) for detailed configuration examples and API usage.
 
 ### Database Configuration
 
