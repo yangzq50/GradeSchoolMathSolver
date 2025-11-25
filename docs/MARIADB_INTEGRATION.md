@@ -59,12 +59,14 @@ CREATE TABLE `quiz_history` (
     `category` VARCHAR(100) NOT NULL,
     `timestamp` TIMESTAMP NOT NULL,
     `reviewed` BOOLEAN DEFAULT FALSE,
-    `question_embedding` BLOB,
-    `equation_embedding` BLOB,
+    `question_embedding` VECTOR(768),
+    `equation_embedding` VECTOR(768),
     INDEX idx_username (username),
     INDEX idx_timestamp (timestamp),
     INDEX idx_category (category),
-    INDEX idx_reviewed (reviewed)
+    INDEX idx_reviewed (reviewed),
+    VECTOR INDEX idx_question_embedding (question_embedding),
+    VECTOR INDEX idx_equation_embedding (equation_embedding)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ```
 
@@ -79,14 +81,16 @@ CREATE TABLE `quiz_history` (
 - `category`: Question category (addition, subtraction, etc.)
 - `timestamp`: When the answer was recorded
 - `reviewed`: Whether this mistake has been reviewed
-- `question_embedding`: Vector embedding of the question text (BLOB, for RAG features)
-- `equation_embedding`: Vector embedding of the equation (BLOB, for RAG features)
+- `question_embedding`: Vector embedding of the question text (VECTOR(768), for RAG features)
+- `equation_embedding`: Vector embedding of the equation (VECTOR(768), for RAG features)
 
 **Indexes**:
 - `idx_username`: Fast filtering by user
 - `idx_timestamp`: Efficient sorting by time
 - `idx_category`: Category-based queries
 - `idx_reviewed`: Quick lookup of unreviewed mistakes
+- `idx_question_embedding`: Vector index for question similarity search
+- `idx_equation_embedding`: Vector index for equation similarity search
 
 **Example Row**:
 ```
@@ -100,8 +104,8 @@ is_correct: TRUE
 category: "addition"
 timestamp: "2025-11-17T10:15:30.000000"
 reviewed: FALSE
-question_embedding: <binary vector data>
-equation_embedding: <binary vector data>
+question_embedding: [0.123, -0.456, 0.789, ...]
+equation_embedding: [0.234, -0.567, 0.890, ...]
 ```
 
 ## Configuration

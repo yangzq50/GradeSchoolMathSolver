@@ -246,8 +246,8 @@ def get_embedding_columns_mariadb(
     """
     Generate MariaDB column definitions for embedding fields
 
-    Uses BLOB type to store binary vector data. The BLOB type is used
-    because MariaDB 11.8+ supports vector operations on BLOB columns.
+    Uses VECTOR(dim) type for native vector storage in MariaDB 11.8+.
+    This enables efficient vector similarity search using vector indexes.
 
     Args:
         column_names: List of embedding column names
@@ -258,11 +258,32 @@ def get_embedding_columns_mariadb(
     """
     columns = {}
     for i, col_name in enumerate(column_names):
-        # Use BLOB for binary vector storage
-        # Dimension information is tracked via config.py settings (EMBEDDING_DIMENSIONS)
-        # and should be validated at the application level when storing/retrieving vectors
-        columns[col_name] = "BLOB"
+        dim = dimensions[i] if i < len(dimensions) else dimensions[-1]
+        # Use VECTOR type with specified dimension for native vector storage
+        columns[col_name] = f"VECTOR({dim})"
     return columns
+
+
+def get_embedding_indexes_mariadb(
+    column_names: List[str]
+) -> List[str]:
+    """
+    Generate MariaDB vector index definitions for embedding fields
+
+    Creates vector indexes for efficient similarity search on embedding columns.
+    MariaDB 11.8+ supports VECTOR INDEX for approximate nearest neighbor search.
+
+    Args:
+        column_names: List of embedding column names
+
+    Returns:
+        List of index definition strings
+    """
+    indexes = []
+    for col_name in column_names:
+        # Create vector index for each embedding column
+        indexes.append(f"VECTOR INDEX idx_{col_name} ({col_name})")
+    return indexes
 
 
 def get_user_schema_for_backend(backend: str) -> Dict[str, Any]:
@@ -354,7 +375,15 @@ def get_answer_history_schema_for_backend(
             "reviewed": "BOOLEAN DEFAULT FALSE"
         }
 
-        # Add embedding columns if enabled
+        # Base indexes for standard columns
+        indexes = [
+            "INDEX idx_username (username)",
+            "INDEX idx_timestamp (timestamp)",
+            "INDEX idx_category (category)",
+            "INDEX idx_reviewed (reviewed)"
+        ]
+
+        # Add embedding columns and vector indexes if enabled
         if include_embeddings:
             embedding_columns = get_embedding_columns_mariadb(
                 embedding_config['column_names'],
@@ -362,14 +391,15 @@ def get_answer_history_schema_for_backend(
             )
             columns.update(embedding_columns)
 
+            # Add vector indexes for embedding columns
+            vector_indexes = get_embedding_indexes_mariadb(
+                embedding_config['column_names']
+            )
+            indexes.extend(vector_indexes)
+
         return {
             "columns": columns,
-            "indexes": [
-                "INDEX idx_username (username)",
-                "INDEX idx_timestamp (timestamp)",
-                "INDEX idx_category (category)",
-                "INDEX idx_reviewed (reviewed)"
-            ]
+            "indexes": indexes
         }
     else:
         raise ValueError(f"Unknown backend: {backend}")

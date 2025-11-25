@@ -249,9 +249,21 @@ class TestMariaDBEmbeddingSchema:
         assert 'question_embedding' in columns
         assert 'equation_embedding' in columns
 
-        # Both should use BLOB type for binary vector storage
-        assert columns['question_embedding'] == 'BLOB'
-        assert columns['equation_embedding'] == 'BLOB'
+        # Both should use VECTOR type with specified dimensions
+        assert columns['question_embedding'] == 'VECTOR(768)'
+        assert columns['equation_embedding'] == 'VECTOR(512)'
+
+    def test_mariadb_embedding_indexes_generation(self):
+        """Test that vector indexes are generated correctly for MariaDB"""
+        from gradeschoolmathsolver.services.database.schemas import get_embedding_indexes_mariadb
+
+        indexes = get_embedding_indexes_mariadb(
+            column_names=['question_embedding', 'equation_embedding']
+        )
+
+        assert len(indexes) == 2
+        assert 'VECTOR INDEX idx_question_embedding (question_embedding)' in indexes
+        assert 'VECTOR INDEX idx_equation_embedding (equation_embedding)' in indexes
 
     def test_mariadb_schema_includes_embeddings(self):
         """Test that answer history schema includes embedding columns for MariaDB"""
@@ -266,12 +278,17 @@ class TestMariaDBEmbeddingSchema:
         assert 'username' in columns
         assert 'is_correct' in columns
 
-        # Check embedding columns are present
+        # Check embedding columns are present with VECTOR type
         assert 'question_embedding' in columns
-        assert columns['question_embedding'] == 'BLOB'
+        assert columns['question_embedding'] == 'VECTOR(768)'
 
         assert 'equation_embedding' in columns
-        assert columns['equation_embedding'] == 'BLOB'
+        assert columns['equation_embedding'] == 'VECTOR(768)'
+
+        # Check vector indexes are present
+        indexes = schema['indexes']
+        assert 'VECTOR INDEX idx_question_embedding (question_embedding)' in indexes
+        assert 'VECTOR INDEX idx_equation_embedding (equation_embedding)' in indexes
 
     def test_mariadb_schema_without_embeddings(self):
         """Test that embeddings can be excluded from MariaDB schema"""
@@ -280,6 +297,7 @@ class TestMariaDBEmbeddingSchema:
         schema = get_answer_history_schema_for_backend('mariadb', include_embeddings=False)
 
         columns = schema['columns']
+        indexes = schema['indexes']
 
         # Check standard columns are present
         assert 'record_id' in columns
@@ -288,6 +306,10 @@ class TestMariaDBEmbeddingSchema:
         # Check embedding columns are NOT present
         assert 'question_embedding' not in columns
         assert 'equation_embedding' not in columns
+
+        # Check vector indexes are NOT present
+        assert 'VECTOR INDEX idx_question_embedding (question_embedding)' not in indexes
+        assert 'VECTOR INDEX idx_equation_embedding (equation_embedding)' not in indexes
 
 
 class TestBackwardsCompatibility:
