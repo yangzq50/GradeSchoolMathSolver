@@ -259,7 +259,8 @@ def get_embedding_columns_mariadb(
     columns = {}
     for i, col_name in enumerate(column_names):
         # Use BLOB for binary vector storage
-        # The dimension is stored as metadata for validation/documentation
+        # Dimension information is tracked via config.py settings (EMBEDDING_DIMENSIONS)
+        # and should be validated at the application level when storing/retrieving vectors
         columns[col_name] = "BLOB"
     return columns
 
