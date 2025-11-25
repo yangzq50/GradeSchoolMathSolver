@@ -19,6 +19,7 @@ The schema supports configurable embedding columns for RAG features.
 Configuration is read from config.py:
 - EMBEDDING_COLUMN_COUNT: Number of embedding columns (default: 2)
 - EMBEDDING_DIMENSIONS: Dimension for each column (default: 768)
+- EMBEDDING_COLUMN_NAMES: Names for each column (default: question_embedding,equation_embedding)
 - ELASTICSEARCH_VECTOR_SIMILARITY: Similarity metric (default: cosine)
 """
 
@@ -166,9 +167,6 @@ MARIADB_TYPE_MAPPING = {
     'Optional[int]': 'INT'
 }
 
-# Default embedding column names for consistency across backends
-DEFAULT_EMBEDDING_COLUMN_NAMES = ['question_embedding', 'equation_embedding']
-
 
 def get_embedding_config() -> Dict[str, Any]:
     """
@@ -187,19 +185,21 @@ def get_embedding_config() -> Dict[str, Any]:
     column_count = config.EMBEDDING_COLUMN_COUNT
     dimensions = config.EMBEDDING_DIMENSIONS
     similarity = config.ELASTICSEARCH_VECTOR_SIMILARITY
+    column_names = config.EMBEDDING_COLUMN_NAMES
 
     # Extend dimensions list if needed (apply last dimension to remaining columns)
     if len(dimensions) < column_count:
-        last_dim = dimensions[-1] if dimensions else 768
+        last_dim = dimensions[-1]
         dimensions = dimensions + [last_dim] * (column_count - len(dimensions))
 
-    # Generate column names (use defaults or generate based on count)
-    if column_count <= len(DEFAULT_EMBEDDING_COLUMN_NAMES):
-        column_names = DEFAULT_EMBEDDING_COLUMN_NAMES[:column_count]
-    else:
-        column_names = DEFAULT_EMBEDDING_COLUMN_NAMES.copy()
-        for i in range(len(DEFAULT_EMBEDDING_COLUMN_NAMES), column_count):
-            column_names.append(f'embedding_{i}')
+    # Extend column names list if needed (generate names for additional columns)
+    if len(column_names) < column_count:
+        for i in range(len(column_names), column_count):
+            column_names = column_names + [f'embedding_{i}']
+
+    # Truncate lists to match column_count
+    column_names = column_names[:column_count]
+    dimensions = dimensions[:column_count]
 
     return {
         'column_count': column_count,

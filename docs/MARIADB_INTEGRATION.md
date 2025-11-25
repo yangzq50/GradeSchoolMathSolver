@@ -131,6 +131,7 @@ ELASTICSEARCH_INDEX=quiz_history
 # Embedding Storage Configuration (for RAG features)
 EMBEDDING_COLUMN_COUNT=2
 EMBEDDING_DIMENSIONS=768
+EMBEDDING_COLUMN_NAMES=question_embedding,equation_embedding
 ```
 
 ### Embedding Storage Configuration
@@ -141,10 +142,12 @@ The schema supports configurable embedding columns for RAG (Retrieval-Augmented 
 |----------|---------|-------------|
 | `EMBEDDING_COLUMN_COUNT` | 2 | Number of embedding columns per record |
 | `EMBEDDING_DIMENSIONS` | 768 | Dimension(s) for embedding vectors (comma-separated for different dimensions per column) |
+| `EMBEDDING_COLUMN_NAMES` | question_embedding,equation_embedding | Names for embedding columns (comma-separated) |
 
-**Default Embedding Columns**:
-- `question_embedding`: Vector embedding of the question text
-- `equation_embedding`: Vector embedding of the mathematical equation
+**Custom Embedding Columns**: You can customize the column names via the `EMBEDDING_COLUMN_NAMES` environment variable:
+```bash
+EMBEDDING_COLUMN_NAMES=question_embedding,equation_embedding
+```
 
 **Multiple Dimensions**: If you need different dimensions for each column, use comma-separated values:
 ```bash

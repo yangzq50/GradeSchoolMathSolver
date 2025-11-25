@@ -33,6 +33,12 @@ class TestEmbeddingConfigDefaults:
         config = Config()
         assert config.ELASTICSEARCH_VECTOR_SIMILARITY == 'cosine'
 
+    def test_embedding_column_names_default(self):
+        """Test that EMBEDDING_COLUMN_NAMES defaults to ['question_embedding', 'equation_embedding']"""
+        from gradeschoolmathsolver.config import Config
+        config = Config()
+        assert config.EMBEDDING_COLUMN_NAMES == ['question_embedding', 'equation_embedding']
+
 
 class TestEmbeddingConfigOverrides:
     """Test environment variable overrides for embedding configuration"""
@@ -85,6 +91,18 @@ class TestEmbeddingConfigOverrides:
             config = Config()
             assert config.ELASTICSEARCH_VECTOR_SIMILARITY == 'dot_product'
 
+    def test_embedding_column_names_override(self):
+        """Test that EMBEDDING_COLUMN_NAMES can be overridden via env var"""
+        env_vars = {'EMBEDDING_COLUMN_NAMES': 'custom_emb_1, custom_emb_2, custom_emb_3'}
+
+        with patch.dict(os.environ, env_vars, clear=False):
+            import gradeschoolmathsolver.config as config_module
+            importlib.reload(config_module)
+            from gradeschoolmathsolver.config import Config
+
+            config = Config()
+            assert config.EMBEDDING_COLUMN_NAMES == ['custom_emb_1', 'custom_emb_2', 'custom_emb_3']
+
 
 class TestEmbeddingSchemaHelpers:
     """Test embedding schema helper functions"""
@@ -92,7 +110,10 @@ class TestEmbeddingSchemaHelpers:
     def test_get_embedding_config_default(self):
         """Test get_embedding_config returns correct default values"""
         # Reset environment to ensure defaults are used
-        env_vars_to_clear = ['EMBEDDING_COLUMN_COUNT', 'EMBEDDING_DIMENSIONS', 'ELASTICSEARCH_VECTOR_SIMILARITY']
+        env_vars_to_clear = [
+            'EMBEDDING_COLUMN_COUNT', 'EMBEDDING_DIMENSIONS',
+            'ELASTICSEARCH_VECTOR_SIMILARITY', 'EMBEDDING_COLUMN_NAMES'
+        ]
         original_values = {k: os.environ.get(k) for k in env_vars_to_clear}
 
         try:

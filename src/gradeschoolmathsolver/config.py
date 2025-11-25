@@ -65,6 +65,7 @@ class Config:
     Embedding Storage Settings:
         EMBEDDING_COLUMN_COUNT: Number of embedding columns per record (default: 2)
         EMBEDDING_DIMENSIONS: Dimension(s) for each embedding column (default: 768)
+        EMBEDDING_COLUMN_NAMES: Column names for embeddings (default: question_embedding,equation_embedding)
         ELASTICSEARCH_VECTOR_SIMILARITY: Similarity metric for vector search (default: cosine)
     """
 
@@ -145,6 +146,11 @@ class Config:
     # Can be a single value (applied to all columns) or comma-separated list for each column
     _embedding_dims_str = os.getenv('EMBEDDING_DIMENSIONS', '768')
     EMBEDDING_DIMENSIONS = [int(d.strip()) for d in _embedding_dims_str.split(',')]
+
+    # Embedding column names (comma-separated list)
+    # Default: question_embedding,equation_embedding
+    _embedding_names_str = os.getenv('EMBEDDING_COLUMN_NAMES', 'question_embedding,equation_embedding')
+    EMBEDDING_COLUMN_NAMES = [name.strip() for name in _embedding_names_str.split(',')]
 
     # Elasticsearch-specific: similarity metric for vector search
     # Options: 'cosine', 'dot_product', 'l2_norm'

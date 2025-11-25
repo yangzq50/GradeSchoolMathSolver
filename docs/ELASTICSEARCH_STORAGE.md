@@ -44,11 +44,13 @@ The schema supports configurable embedding columns for RAG (Retrieval-Augmented 
 |----------|---------|-------------|
 | `EMBEDDING_COLUMN_COUNT` | 2 | Number of embedding columns per record |
 | `EMBEDDING_DIMENSIONS` | 768 | Dimension(s) for embedding vectors (comma-separated for different dimensions per column) |
+| `EMBEDDING_COLUMN_NAMES` | question_embedding,equation_embedding | Names for embedding columns (comma-separated) |
 | `ELASTICSEARCH_VECTOR_SIMILARITY` | cosine | Similarity metric for vector search (cosine, dot_product, l2_norm) |
 
-**Default Embedding Fields**:
-- `question_embedding`: Vector embedding of the question text (dense_vector)
-- `equation_embedding`: Vector embedding of the mathematical equation (dense_vector)
+**Custom Embedding Fields**: You can customize the field names via the `EMBEDDING_COLUMN_NAMES` environment variable:
+```bash
+EMBEDDING_COLUMN_NAMES=question_embedding,equation_embedding
+```
 
 **Similarity Metrics**:
 - `cosine`: Cosine similarity (default, best for normalized vectors)
