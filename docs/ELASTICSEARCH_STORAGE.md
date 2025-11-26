@@ -29,7 +29,33 @@ DATABASE_BACKEND=elasticsearch
 ELASTICSEARCH_HOST=localhost
 ELASTICSEARCH_PORT=9200
 ELASTICSEARCH_INDEX=quiz_history
+
+# Embedding Storage Configuration (for RAG features)
+EMBEDDING_COLUMN_COUNT=2
+EMBEDDING_DIMENSIONS=768
+ELASTICSEARCH_VECTOR_SIMILARITY=cosine
 ```
+
+### Embedding Storage Configuration
+
+The schema supports configurable embedding columns for RAG (Retrieval-Augmented Generation) features:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `EMBEDDING_COLUMN_COUNT` | 2 | Number of embedding columns per record |
+| `EMBEDDING_DIMENSIONS` | 768 | Dimension(s) for embedding vectors (comma-separated for different dimensions per column) |
+| `EMBEDDING_COLUMN_NAMES` | question_embedding,equation_embedding | Names for embedding columns (comma-separated) |
+| `ELASTICSEARCH_VECTOR_SIMILARITY` | cosine | Similarity metric for vector search (cosine, dot_product, l2_norm) |
+
+**Custom Embedding Fields**: You can customize the field names via the `EMBEDDING_COLUMN_NAMES` environment variable:
+```bash
+EMBEDDING_COLUMN_NAMES=question_embedding,equation_embedding
+```
+
+**Similarity Metrics**:
+- `cosine`: Cosine similarity (default, best for normalized vectors)
+- `dot_product`: Dot product similarity (fastest for un-normalized vectors)
+- `l2_norm`: Euclidean distance
 
 ## Architecture
 
@@ -109,7 +135,19 @@ Both services share the same database indices/tables to prevent data duplication
       "is_correct": {"type": "boolean"},
       "category": {"type": "keyword"},
       "timestamp": {"type": "date"},
-      "reviewed": {"type": "boolean"}
+      "reviewed": {"type": "boolean"},
+      "question_embedding": {
+        "type": "dense_vector",
+        "dims": 768,
+        "index": true,
+        "similarity": "cosine"
+      },
+      "equation_embedding": {
+        "type": "dense_vector",
+        "dims": 768,
+        "index": true,
+        "similarity": "cosine"
+      }
     }
   }
 }
@@ -129,7 +167,9 @@ Both services share the same database indices/tables to prevent data duplication
     "is_correct": true,
     "category": "addition",
     "timestamp": "2025-11-17T05:00:00.000000",
-    "reviewed": false
+    "reviewed": false,
+    "question_embedding": [0.123, -0.456, 0.789, ...],
+    "equation_embedding": [0.234, -0.567, 0.890, ...]
   }
 }
 ```
@@ -145,6 +185,8 @@ Both services share the same database indices/tables to prevent data duplication
 - `category`: Question category (addition, subtraction, etc.)
 - `timestamp`: When recorded (ISO 8601 format)
 - `reviewed`: Whether mistake has been reviewed
+- `question_embedding`: Vector embedding for semantic search (dense_vector)
+- `equation_embedding`: Vector embedding of equation for RAG (dense_vector)
 
 ## CRUD Operations
 
