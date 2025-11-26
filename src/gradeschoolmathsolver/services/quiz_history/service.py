@@ -3,16 +3,24 @@ Quiz History Service
 Manages quiz history using centralized database service for RAG (Retrieval-Augmented Generation)
 
 This service provides:
-- Storage of question-answer pairs
+- Storage of question-answer pairs with vector embeddings
 - Similarity-based search for relevant historical questions
 - User history retrieval
 - Graceful degradation when database is unavailable
+
+Embedding Generation:
+The service generates embeddings for configured source columns (e.g., 'question', 'equation')
+and stores them in corresponding embedding columns for vector similarity search.
 """
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from gradeschoolmathsolver.config import Config
 from gradeschoolmathsolver.models import QuizHistory
 from gradeschoolmathsolver.services.database import get_database_service
+from gradeschoolmathsolver.services.database.schemas import (
+    get_answer_history_schema_for_backend,
+    get_embedding_source_mapping
+)
 
 
 class QuizHistoryService:
@@ -22,46 +30,70 @@ class QuizHistoryService:
     This service handles quiz history storage and retrieval for RAG functionality.
     It gracefully degrades to limited mode when database is unavailable.
 
+    Embedding Support:
+    The service automatically generates embeddings for source text columns
+    (configured via EMBEDDING_SOURCE_COLUMNS) when adding history records.
+    These embeddings enable vector similarity search for RAG.
+
     Attributes:
         config: Configuration object
         index_name: Name of the database index
         db: DatabaseService instance for data operations
+        embedding_service: EmbeddingService for generating vector embeddings
+        source_to_embedding_map: Mapping from source columns to embedding columns
     """
 
     def __init__(self):
         self.config = Config()
         self.index_name = self.config.ELASTICSEARCH_INDEX
         self.db = get_database_service()
+        self.embedding_service = None
+        self.source_to_embedding_map = get_embedding_source_mapping()
         self._create_index()
+
+    def _get_embedding_service(self):
+        """
+        Lazy-load the embedding service to avoid circular imports
+        and allow graceful degradation when service is unavailable.
+
+        Returns:
+            EmbeddingService instance or None if unavailable
+        """
+        if self.embedding_service is None:
+            try:
+                from gradeschoolmathsolver.services.embedding import EmbeddingService
+                self.embedding_service = EmbeddingService()
+            except Exception as e:
+                print(f"Warning: Could not initialize embedding service: {e}")
+                return None
+        return self.embedding_service
 
     def _create_index(self):
         """
-        Create database index with appropriate mappings
+        Create database index with appropriate mappings including embedding columns
 
-        Defines unified schema for efficient storage and retrieval of quiz history.
+        Uses the centralized schema definition from schemas.py which includes
+        both standard fields and embedding columns for vector search.
         """
-        mapping = {
-            "mappings": {
-                "properties": {
-                    "username": {"type": "keyword"},
-                    "question": {"type": "text"},
-                    "equation": {"type": "text"},
-                    "user_equation": {"type": "text"},  # Alias for equation (backward compatibility)
-                    "user_answer": {"type": "integer"},
-                    "correct_answer": {"type": "integer"},
-                    "is_correct": {"type": "boolean"},
-                    "category": {"type": "keyword"},
-                    "timestamp": {"type": "date"},
-                    "reviewed": {"type": "boolean"}
-                }
-            }
-        }
+        # Get the full schema with embeddings for the configured backend
+        schema = get_answer_history_schema_for_backend(
+            self.config.DATABASE_BACKEND,
+            include_embeddings=True
+        )
 
-        self.db.create_collection(self.index_name, mapping)
+        self.db.create_collection(self.index_name, schema)
 
     def add_history(self, history: QuizHistory) -> bool:
         """
-        Add a quiz history record to database
+        Add a quiz history record to database with vector embeddings
+
+        This method generates embeddings from configured source text columns
+        (e.g., 'question' and 'equation') and stores them in the corresponding
+        embedding columns for vector similarity search.
+
+        The source-to-embedding mapping is configured via:
+        - EMBEDDING_SOURCE_COLUMNS: Source text columns (default: 'question,equation')
+        - EMBEDDING_COLUMN_NAMES: Embedding columns (default: 'question_embedding,equation_embedding')
 
         Args:
             history: QuizHistory object to store
@@ -73,7 +105,8 @@ class QuizHistoryService:
             return False
 
         try:
-            doc = {
+            # Build the base document
+            doc: Dict[str, Any] = {
                 "username": history.username,
                 "question": history.question,
                 "equation": history.user_equation,  # Store as equation
@@ -86,11 +119,74 @@ class QuizHistoryService:
                 "reviewed": False  # Default value for new records
             }
 
+            # Generate embeddings for configured source columns
+            self._add_embeddings_to_doc(doc, history)
+
             doc_id = self.db.insert_record(self.index_name, doc)
             return doc_id is not None
         except Exception as e:
             print(f"Error adding history: {e}")
             return False
+
+    def _add_embeddings_to_doc(self, doc: Dict[str, Any], history: QuizHistory) -> None:
+        """
+        Generate and add embeddings to the document from source columns.
+
+        Extracts text from source columns specified in configuration,
+        generates embeddings using the embedding service, and adds
+        them to the document for vector similarity search.
+
+        Args:
+            doc: Document dictionary to add embeddings to (modified in-place)
+            history: QuizHistory object containing source text data
+
+        Note:
+            If the embedding service is unavailable or generation fails,
+            the embeddings are set to zero vectors to maintain schema compatibility
+            with NOT NULL constraints on VECTOR columns.
+        """
+        embedding_service = self._get_embedding_service()
+
+        # Map source column names to their values from the history object
+        source_values = {
+            'question': history.question,
+            'equation': history.user_equation,
+            'user_equation': history.user_equation,
+        }
+
+        # Generate embeddings for each configured source column
+        for source_col, embedding_col in self.source_to_embedding_map.items():
+            # Get the source text value
+            source_text = source_values.get(source_col, '')
+            if not source_text:
+                # Also check if source column is in the doc itself
+                source_text = doc.get(source_col, '')
+
+            embedding = None
+            if embedding_service and source_text:
+                try:
+                    embedding = embedding_service.generate_embedding(source_text)
+                except Exception as e:
+                    print(f"Warning: Failed to generate embedding for {source_col}: {e}")
+
+            if embedding:
+                doc[embedding_col] = embedding
+            else:
+                # Use zero vector as default for NOT NULL constraint compatibility
+                # Get dimensions from config
+                from gradeschoolmathsolver.services.database.schemas import get_embedding_config
+                config = get_embedding_config()
+                col_names = config['column_names']
+                dimensions = config['dimensions']
+
+                # Find the dimension for this embedding column
+                dim = dimensions[0]  # Default to first dimension
+                if embedding_col in col_names:
+                    idx = col_names.index(embedding_col)
+                    if idx < len(dimensions):
+                        dim = dimensions[idx]
+
+                doc[embedding_col] = [0.0] * dim
 
     def search_relevant_history(self, username: str, question: str,
                                 category: Optional[str] = None,

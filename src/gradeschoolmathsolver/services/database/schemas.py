@@ -178,6 +178,10 @@ def get_embedding_config() -> Dict[str, Any]:
         - dimensions: List of dimensions for each column
         - similarity: Elasticsearch vector similarity metric
         - column_names: List of embedding column names
+        - source_columns: List of source text columns for embedding generation
+
+    Raises:
+        ValueError: If configuration validation fails (e.g., mismatched counts)
     """
     from gradeschoolmathsolver.config import Config
     config = Config()
@@ -186,6 +190,7 @@ def get_embedding_config() -> Dict[str, Any]:
     dimensions = config.EMBEDDING_DIMENSIONS
     similarity = config.ELASTICSEARCH_VECTOR_SIMILARITY
     column_names = config.EMBEDDING_COLUMN_NAMES
+    source_columns = config.EMBEDDING_SOURCE_COLUMNS
 
     # Extend dimensions list if needed (apply last dimension to remaining columns)
     if len(dimensions) < column_count:
@@ -197,16 +202,83 @@ def get_embedding_config() -> Dict[str, Any]:
         for i in range(len(column_names), column_count):
             column_names = column_names + [f'embedding_{i}']
 
+    # Extend source columns list if needed (generate names for additional columns)
+    if len(source_columns) < column_count:
+        for i in range(len(source_columns), column_count):
+            source_columns = source_columns + [f'source_{i}']
+
     # Truncate lists to match column_count
     column_names = column_names[:column_count]
     dimensions = dimensions[:column_count]
+    source_columns = source_columns[:column_count]
 
     return {
         'column_count': column_count,
         'dimensions': dimensions,
         'similarity': similarity,
-        'column_names': column_names
+        'column_names': column_names,
+        'source_columns': source_columns
     }
+
+
+def get_embedding_source_mapping() -> Dict[str, str]:
+    """
+    Get mapping from source text columns to embedding columns.
+
+    This function provides a convenient way to determine which source column
+    should be used to generate each embedding column. Services can use this
+    to know where to get the text for embedding generation.
+
+    Returns:
+        Dict mapping source column name -> embedding column name
+        Example: {'question': 'question_embedding', 'equation': 'equation_embedding'}
+    """
+    config = get_embedding_config()
+    source_columns = config['source_columns']
+    column_names = config['column_names']
+
+    return {
+        source: embedding
+        for source, embedding in zip(source_columns, column_names)
+    }
+
+
+def validate_embedding_config() -> bool:
+    """
+    Validate embedding configuration for consistency.
+
+    Checks that:
+    - EMBEDDING_COLUMN_COUNT matches the length of column names and source columns
+    - All lists are properly aligned after extension/truncation
+
+    Returns:
+        True if configuration is valid
+
+    Raises:
+        ValueError: If configuration is invalid with details about the issue
+    """
+    config = get_embedding_config()
+
+    column_count = config['column_count']
+    if len(config['column_names']) != column_count:
+        raise ValueError(
+            f"Column names count ({len(config['column_names'])}) "
+            f"does not match EMBEDDING_COLUMN_COUNT ({column_count})"
+        )
+
+    if len(config['source_columns']) != column_count:
+        raise ValueError(
+            f"Source columns count ({len(config['source_columns'])}) "
+            f"does not match EMBEDDING_COLUMN_COUNT ({column_count})"
+        )
+
+    if len(config['dimensions']) != column_count:
+        raise ValueError(
+            f"Dimensions count ({len(config['dimensions'])}) "
+            f"does not match EMBEDDING_COLUMN_COUNT ({column_count})"
+        )
+
+    return True
 
 
 def get_embedding_fields_elasticsearch(
@@ -258,6 +330,9 @@ def get_embedding_columns_mariadb(
     Uses VECTOR(dim) type for native vector storage in MariaDB 11.8+.
     This enables efficient vector similarity search using vector indexes.
 
+    Note: VECTOR columns must be NOT NULL for vector indexing to work in MariaDB.
+    MariaDB requires all parts of a VECTOR index to be NOT NULL.
+
     Args:
         column_names: List of embedding column names
         dimensions: List of dimensions for each column
@@ -277,8 +352,9 @@ def get_embedding_columns_mariadb(
             dim = dimensions[i]
         else:
             dim = dimensions[-1]
-        # Use VECTOR type with specified dimension for native vector storage
-        columns[col_name] = f"VECTOR({dim})"
+        # Use VECTOR type with NOT NULL constraint for vector index compatibility
+        # MariaDB requires NOT NULL for all parts of a VECTOR index
+        columns[col_name] = f"VECTOR({dim}) NOT NULL"
     return columns
 
 
