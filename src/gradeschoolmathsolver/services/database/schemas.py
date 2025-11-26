@@ -416,20 +416,81 @@ def get_embedding_indexes_mariadb(
     """
     Generate MariaDB vector index definitions for embedding fields
 
-    Creates vector indexes for efficient similarity search on embedding columns.
-    MariaDB 11.8+ supports VECTOR INDEX for approximate nearest neighbor search.
+    Note: MariaDB doesn't support multiple VECTOR indexes on the same table.
+    Embeddings are now stored in separate tables (one per embedding column),
+    so this function returns an empty list since indexes are created per-table.
 
     Args:
         column_names: List of embedding column names
 
     Returns:
-        List of index definition strings
+        Empty list (indexes are created in separate embedding tables)
     """
-    indexes = []
-    for col_name in column_names:
-        # Create vector index for each embedding column
-        indexes.append(f"VECTOR INDEX idx_{col_name} ({col_name})")
-    return indexes
+    # MariaDB doesn't support multiple VECTOR indexes on same table
+    # Each embedding column gets its own table with its own index
+    return []
+
+
+def get_embedding_table_schemas_mariadb(
+    base_table_name: str,
+    embedding_config: Dict[str, Any]
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Generate separate table schemas for each embedding column in MariaDB.
+
+    MariaDB doesn't support multiple VECTOR indexes on the same table.
+    This function creates a separate table for each embedding column.
+    Each table has:
+    - record_id: PRIMARY KEY that references the main table
+    - embedding: VECTOR column with a VECTOR INDEX
+
+    Args:
+        base_table_name: Name of the main table (e.g., 'quiz_history')
+        embedding_config: Embedding configuration from get_embedding_config()
+
+    Returns:
+        Dict mapping table_name -> schema dict with 'columns' and 'indexes'
+        Example: {
+            'quiz_history_question_embedding': {
+                'columns': {...},
+                'indexes': [...]
+            },
+            ...
+        }
+    """
+    column_names = embedding_config['column_names']
+    dimensions = embedding_config['dimensions']
+
+    tables = {}
+    for i, col_name in enumerate(column_names):
+        dim = dimensions[i] if i < len(dimensions) else dimensions[-1]
+        table_name = f"{base_table_name}_{col_name}"
+
+        tables[table_name] = {
+            "columns": {
+                "record_id": "VARCHAR(255) PRIMARY KEY",
+                "embedding": f"VECTOR({dim}) NOT NULL"
+            },
+            "indexes": [
+                "VECTOR INDEX idx_embedding (embedding)"
+            ]
+        }
+
+    return tables
+
+
+def get_embedding_table_name(base_table_name: str, embedding_col_name: str) -> str:
+    """
+    Get the table name for a specific embedding column.
+
+    Args:
+        base_table_name: Name of the main table (e.g., 'quiz_history')
+        embedding_col_name: Name of the embedding column
+
+    Returns:
+        Table name for the embedding (e.g., 'quiz_history_question_embedding')
+    """
+    return f"{base_table_name}_{embedding_col_name}"
 
 
 def get_user_schema_for_backend(backend: str) -> Dict[str, Any]:
@@ -473,9 +534,14 @@ def get_answer_history_schema_for_backend(
     Uses ANSWER_HISTORY_SCHEMA_COLUMNS as the single source of truth for column definitions.
     Validates embedding configuration using the actual schema columns.
 
+    For MariaDB: Embeddings are stored in separate tables (one per embedding column)
+    because MariaDB doesn't support multiple VECTOR indexes on the same table.
+    Use get_embedding_table_schemas_mariadb() to get the embedding table schemas.
+
     Args:
         backend: 'elasticsearch' or 'mariadb'
         include_embeddings: Whether to include embedding columns (default: True)
+                           For MariaDB, this only validates config - embeddings go in separate tables
 
     Returns:
         Schema definition dict appropriate for the backend
@@ -502,7 +568,7 @@ def get_answer_history_schema_for_backend(
                 continue
             properties[col_name] = {"type": es_type}
 
-        # Add embedding fields if enabled
+        # Add embedding fields if enabled (Elasticsearch supports multiple vector fields)
         if include_embeddings:
             embedding_fields = get_embedding_fields_elasticsearch(
                 embedding_config['column_names'],
@@ -518,26 +584,14 @@ def get_answer_history_schema_for_backend(
         }
     elif backend == 'mariadb':
         # Build columns from the common schema definition
+        # Note: Embedding columns are NOT included here for MariaDB
+        # They are stored in separate tables (see get_embedding_table_schemas_mariadb)
         columns: Dict[str, str] = {}
         for col_name, _, maria_type, _ in ANSWER_HISTORY_SCHEMA_COLUMNS:
             columns[col_name] = maria_type
 
-        # Use the predefined indexes
+        # Use the predefined indexes (no vector indexes here)
         indexes = list(ANSWER_HISTORY_INDEXES)
-
-        # Add embedding columns and vector indexes if enabled
-        if include_embeddings:
-            embedding_columns = get_embedding_columns_mariadb(
-                embedding_config['column_names'],
-                embedding_config['dimensions']
-            )
-            columns.update(embedding_columns)
-
-            # Add vector indexes for embedding columns
-            vector_indexes = get_embedding_indexes_mariadb(
-                embedding_config['column_names']
-            )
-            indexes.extend(vector_indexes)
 
         return {
             "columns": columns,

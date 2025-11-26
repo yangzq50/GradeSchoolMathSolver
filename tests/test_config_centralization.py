@@ -201,9 +201,38 @@ def test_database_service_uses_config():
                 print("✅ Database service selection correctly uses Config")
 
 
+def _is_os_getenv_call(node) -> bool:  # type: ignore[no-untyped-def]
+    """Check if an AST node is an os.getenv call."""
+    import ast
+    return (isinstance(node, ast.Call) and
+            isinstance(node.func, ast.Attribute) and
+            node.func.attr == 'getenv' and
+            isinstance(node.func.value, ast.Name) and
+            node.func.value.id == 'os')
+
+
+def _check_file_for_getenv(filepath, violations: list) -> None:  # type: ignore[no-untyped-def]
+    """Check a Python file for direct os.getenv calls."""
+    import ast
+
+    # Skip config.py itself
+    if filepath.name == 'config.py':
+        return
+
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            tree = ast.parse(f.read(), filename=str(filepath))
+
+        for node in ast.walk(tree):
+            if _is_os_getenv_call(node):
+                # node is ast.Call which has lineno attribute
+                violations.append(f"{filepath}:{getattr(node, 'lineno', 0)}")
+    except Exception as e:
+        print(f"Warning: Could not parse {filepath}: {e}")
+
+
 def test_no_direct_os_getenv_outside_config():
     """Test that no direct os.getenv calls exist outside config.py"""
-    import ast
     from pathlib import Path
 
     # Get the source directory (relative to test file location)
@@ -216,32 +245,11 @@ def test_no_direct_os_getenv_outside_config():
         raise FileNotFoundError(f"Source directory not found: {src_dir}")
 
     # Track violations
-    violations = []
-
-    def check_file(filepath):
-        """Check a Python file for direct os.getenv calls"""
-        # Skip config.py itself
-        if filepath.name == 'config.py':
-            return
-
-        try:
-            with open(filepath, 'r', encoding='utf-8') as f:
-                tree = ast.parse(f.read(), filename=str(filepath))
-
-            for node in ast.walk(tree):
-                if isinstance(node, ast.Call):
-                    # Check for os.getenv calls
-                    if (isinstance(node.func, ast.Attribute) and
-                            node.func.attr == 'getenv' and
-                            isinstance(node.func.value, ast.Name) and
-                            node.func.value.id == 'os'):
-                        violations.append(f"{filepath}:{node.lineno}")
-        except Exception as e:
-            print(f"Warning: Could not parse {filepath}: {e}")
+    violations: list = []
 
     # Walk through all Python files
     for py_file in src_dir.rglob('*.py'):
-        check_file(py_file)
+        _check_file_for_getenv(py_file, violations)
 
     if violations:
         print("❌ Found os.getenv calls outside config.py:")

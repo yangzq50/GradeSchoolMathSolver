@@ -552,19 +552,47 @@ class TestMariaDBEmbeddingSchema:
             )
 
     def test_mariadb_embedding_indexes_generation(self):
-        """Test that vector indexes are generated correctly for MariaDB"""
+        """Test that vector indexes return empty list (indexes are in separate tables)"""
         from gradeschoolmathsolver.services.database.schemas import get_embedding_indexes_mariadb
 
         indexes = get_embedding_indexes_mariadb(
             column_names=['question_embedding', 'equation_embedding']
         )
 
-        assert len(indexes) == 2
-        assert 'VECTOR INDEX idx_question_embedding (question_embedding)' in indexes
-        assert 'VECTOR INDEX idx_equation_embedding (equation_embedding)' in indexes
+        # MariaDB doesn't support multiple VECTOR indexes on same table
+        # Each embedding column gets its own table with its own index
+        assert len(indexes) == 0
 
-    def test_mariadb_schema_includes_embeddings(self):
-        """Test that answer history schema includes embedding columns for MariaDB"""
+    def test_mariadb_embedding_table_schemas(self):
+        """Test that separate embedding tables are generated for MariaDB"""
+        from gradeschoolmathsolver.services.database.schemas import get_embedding_table_schemas_mariadb
+
+        embedding_config = {
+            'column_names': ['question_embedding', 'equation_embedding'],
+            'dimensions': [768, 768]
+        }
+
+        tables = get_embedding_table_schemas_mariadb('quiz_history', embedding_config)
+
+        # Should have two separate tables
+        assert len(tables) == 2
+        assert 'quiz_history_question_embedding' in tables
+        assert 'quiz_history_equation_embedding' in tables
+
+        # Each table should have record_id and embedding columns
+        for table_name, table_schema in tables.items():
+            columns = table_schema['columns']
+            assert 'record_id' in columns
+            assert columns['record_id'] == 'VARCHAR(255) PRIMARY KEY'
+            assert 'embedding' in columns
+            assert columns['embedding'] == 'VECTOR(768) NOT NULL'
+
+            indexes = table_schema['indexes']
+            assert len(indexes) == 1
+            assert 'VECTOR INDEX idx_embedding (embedding)' in indexes
+
+    def test_mariadb_schema_excludes_embeddings_in_main_table(self):
+        """Test that answer history schema excludes embedding columns for MariaDB"""
         # Clean up environment to ensure defaults
         env_vars_to_clear = [
             'EMBEDDING_COLUMN_COUNT', 'EMBEDDING_DIMENSIONS',
@@ -593,17 +621,14 @@ class TestMariaDBEmbeddingSchema:
             assert 'username' in columns
             assert 'is_correct' in columns
 
-            # Check embedding columns are present with VECTOR type and NOT NULL
-            assert 'question_embedding' in columns
-            assert columns['question_embedding'] == 'VECTOR(768) NOT NULL'
+            # Embedding columns should NOT be in main table for MariaDB
+            # They are stored in separate tables
+            assert 'question_embedding' not in columns
+            assert 'equation_embedding' not in columns
 
-            assert 'equation_embedding' in columns
-            assert columns['equation_embedding'] == 'VECTOR(768) NOT NULL'
-
-            # Check vector indexes are present
+            # No vector indexes in main table
             indexes = schema['indexes']
-            assert 'VECTOR INDEX idx_question_embedding (question_embedding)' in indexes
-            assert 'VECTOR INDEX idx_equation_embedding (equation_embedding)' in indexes
+            assert 'VECTOR INDEX' not in ' '.join(indexes)
         finally:
             # Restore original values
             for key, value in original_values.items():
