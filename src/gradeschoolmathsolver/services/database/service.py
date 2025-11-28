@@ -9,9 +9,69 @@ The database service handles embedding generation internally when inserting reco
 Other services do not need to know about the database backend or how embeddings are stored.
 For MariaDB, embeddings are stored in separate tables (one per embedding column).
 For Elasticsearch, embeddings are stored in the same document.
+
+Services using database operations SHOULD NOT care about the underlying backend.
+The DATABASE_BACKEND configuration should ONLY be accessed in database service.
 """
 from abc import ABC, abstractmethod
-from typing import List, Optional, Dict, Any, Callable
+from typing import List, Optional, Dict, Any
+
+
+# Global embedding service instance (lazy-loaded)
+_embedding_service = None
+
+
+def get_embedding_service():
+    """
+    Get the embedding service instance for generating vector embeddings.
+
+    This is lazy-loaded to avoid circular imports and allow graceful degradation
+    when the embedding service is unavailable.
+
+    Returns:
+        EmbeddingService instance or None if unavailable
+    """
+    global _embedding_service
+    if _embedding_service is None:
+        try:
+            from gradeschoolmathsolver.services.embedding import EmbeddingService
+            _embedding_service = EmbeddingService()
+        except Exception as e:
+            print(f"ERROR: Could not initialize embedding service: {e}")
+            return None
+    return _embedding_service
+
+
+def generate_embedding(text: str) -> Optional[List[float]]:
+    """
+    Generate an embedding vector for the given text.
+
+    This is the centralized embedding generation function used by all database
+    backends. It uses the EmbeddingService to generate vectors.
+
+    Args:
+        text: The text to generate an embedding for
+
+    Returns:
+        List of floats representing the embedding vector, or None if generation fails
+
+    Raises:
+        RuntimeError: If embedding service is unavailable or generation fails
+    """
+    embedding_service = get_embedding_service()
+    if embedding_service is None:
+        raise RuntimeError(
+            "Embedding service is unavailable. Cannot generate embeddings. "
+            "Please ensure the embedding service is running and accessible."
+        )
+
+    try:
+        embedding = embedding_service.generate_embedding(text)
+        if embedding is None:
+            raise RuntimeError(f"Embedding generation returned None for text: {text[:50]}...")
+        return list(embedding)
+    except Exception as e:
+        raise RuntimeError(f"Embedding generation failed: {e}") from e
 
 
 class DatabaseService(ABC):
@@ -24,10 +84,9 @@ class DatabaseService(ABC):
     without changing business logic.
 
     Embedding Generation:
-    The database service handles embedding generation internally. Callers can
-    provide an embedding generator function to insert_record_with_embeddings()
-    and the service will handle generating and storing embeddings appropriately
-    for the backend.
+    The database service handles embedding generation internally using the
+    centralized generate_embedding() function. Callers provide source_texts
+    dict mapping source column names to text values when inserting records.
     """
 
     @abstractmethod
@@ -95,18 +154,30 @@ class DatabaseService(ABC):
     @abstractmethod
     def insert_record(
         self, collection_name: str, record: Dict[str, Any],
-        record_id: Optional[str] = None
+        record_id: Optional[str] = None,
+        source_texts: Optional[Dict[str, str]] = None
     ) -> Optional[str]:
         """
-        Insert a record (create or update)
+        Insert a record (create or update), with optional embedding generation.
+
+        If source_texts is provided, embeddings will be generated for the specified
+        source columns and stored appropriately for the database backend:
+        - For Elasticsearch: Embeddings are added to the document
+        - For MariaDB: Embeddings are stored in separate tables (one per embedding column)
 
         Args:
             collection_name: Name of the collection
             record: Record data
-            record_id: Optional record ID
+            record_id: Optional record ID (auto-generated UUID if not provided)
+            source_texts: Optional dict mapping source column name -> text to embed
+                         Example: {'question': 'What is 5+3?', 'equation': '5+3'}
+                         If provided, embeddings will be generated and stored.
 
         Returns:
             str: Record ID if successful, None otherwise
+
+        Raises:
+            RuntimeError: If embedding generation fails when source_texts provided
         """
         pass
 
@@ -196,70 +267,6 @@ class DatabaseService(ABC):
             int: Number of matching records
         """
         pass
-
-    def insert_record_with_embeddings(
-        self,
-        collection_name: str,
-        record: Dict[str, Any],
-        source_texts: Dict[str, str],
-        embedding_generator: Callable[[str], Optional[List[float]]],
-        record_id: Optional[str] = None
-    ) -> Optional[str]:
-        """
-        Insert a record with automatically generated embeddings.
-
-        This method generates embeddings from the provided source texts and stores
-        them appropriately for the database backend:
-        - For MariaDB: Embeddings are stored in separate tables (one per embedding column)
-        - For Elasticsearch: Embeddings are added to the document
-
-        The default implementation calls the embedding generator and adds embeddings
-        to the record before calling insert_record. Backend-specific implementations
-        may override this for different storage strategies (e.g., separate tables).
-
-        Args:
-            collection_name: Name of the collection
-            record: Record data (without embeddings)
-            source_texts: Dict mapping source column name -> text to generate embedding from
-                         Example: {'question': 'What is 5+3?', 'equation': '5+3'}
-            embedding_generator: Function that takes text and returns embedding vector
-            record_id: Optional record ID (auto-generated if not provided)
-
-        Returns:
-            str: Record ID if successful, None otherwise
-
-        Raises:
-            RuntimeError: If embedding generation fails
-        """
-        from .schemas import get_embedding_source_mapping
-
-        # Get source-to-embedding column mapping
-        source_to_embedding = get_embedding_source_mapping()
-
-        # Generate embeddings for each source column
-        embeddings = {}
-        for source_col, embedding_col in source_to_embedding.items():
-            if source_col in source_texts:
-                source_text = source_texts[source_col]
-                if not source_text:
-                    raise RuntimeError(
-                        f"Cannot generate embedding for column '{embedding_col}': "
-                        f"source column '{source_col}' is empty."
-                    )
-                embedding = embedding_generator(source_text)
-                if embedding is None:
-                    raise RuntimeError(
-                        f"Embedding generation failed for column '{embedding_col}' "
-                        f"from source column '{source_col}'."
-                    )
-                embeddings[embedding_col] = list(embedding)
-
-        # Add embeddings to record
-        record_with_embeddings = record.copy()
-        record_with_embeddings.update(embeddings)
-
-        # Use standard insert
-        return self.insert_record(collection_name, record_with_embeddings, record_id)
 
     def create_quiz_history_collection(
         self, collection_name: str, include_embeddings: bool = True

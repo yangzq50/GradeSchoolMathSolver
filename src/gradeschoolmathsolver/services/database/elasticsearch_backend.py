@@ -7,7 +7,7 @@ from typing import List, Optional, Dict, Any
 import time
 from elasticsearch import Elasticsearch, ConnectionError as ESConnectionError, NotFoundError, ConflictError
 from gradeschoolmathsolver.config import Config
-from .service import DatabaseService
+from .service import DatabaseService, generate_embedding
 
 
 class ElasticsearchDatabaseService(DatabaseService):
@@ -178,32 +178,85 @@ class ElasticsearchDatabaseService(DatabaseService):
 
     def insert_record(
         self, collection_name: str, record: Dict[str, Any],
-        record_id: Optional[str] = None
+        record_id: Optional[str] = None,
+        source_texts: Optional[Dict[str, str]] = None
     ) -> Optional[str]:
         """
-        Index a document (record) in Elasticsearch (create or update)
+        Index a document (record) in Elasticsearch (create or update), with optional embedding generation.
+
+        If source_texts is provided, embeddings will be generated and added to the document.
 
         Args:
             collection_name: Name of the index
             record: Document data
             record_id: Optional document ID
+            source_texts: Optional dict mapping source column name -> text to embed
+                         Example: {'question': 'What is 5+3?', 'equation': '5+3'}
 
         Returns:
             str: Document ID if successful, None otherwise
+
+        Raises:
+            RuntimeError: If embedding generation fails when source_texts provided
         """
         if not self.es:
             return None
 
         try:
+            # If source_texts provided, generate embeddings and add to record
+            record_to_insert = record.copy()
+            if source_texts:
+                self._add_embeddings_to_record(record_to_insert, source_texts)
+
             if record_id:
-                result = self.es.index(index=collection_name, id=record_id, document=record)
+                result = self.es.index(index=collection_name, id=record_id, document=record_to_insert)
             else:
-                result = self.es.index(index=collection_name, document=record)
+                result = self.es.index(index=collection_name, document=record_to_insert)
             doc_id = result.get('_id')
             return str(doc_id) if doc_id else None
         except Exception as e:
-            print(f"Error indexing document: {e}")
+            print(f"ERROR: Failed to index document in {collection_name}: {e}")
             return None
+
+    def _add_embeddings_to_record(
+        self, record: Dict[str, Any], source_texts: Dict[str, str]
+    ) -> None:
+        """
+        Generate embeddings from source texts and add them to the record.
+
+        Args:
+            record: Record dict to add embeddings to (modified in place)
+            source_texts: Dict mapping source column name -> text to embed
+
+        Raises:
+            RuntimeError: If embedding generation fails
+        """
+        from .schemas import get_embedding_source_mapping
+
+        # Get source-to-embedding column mapping
+        source_to_embedding = get_embedding_source_mapping()
+
+        # Generate embeddings for each source column
+        for source_col, embedding_col in source_to_embedding.items():
+            if source_col not in source_texts:
+                continue
+
+            source_text = source_texts[source_col]
+            if not source_text:
+                error_msg = (
+                    f"Cannot generate embedding for column '{embedding_col}': "
+                    f"source column '{source_col}' is empty."
+                )
+                print(f"ERROR: {error_msg}")
+                raise RuntimeError(error_msg)
+
+            # Generate embedding using centralized function
+            try:
+                embedding = generate_embedding(source_text)
+                record[embedding_col] = embedding
+            except RuntimeError as e:
+                print(f"ERROR: {e}")
+                raise
 
     def get_record(self, collection_name: str, record_id: str) -> Optional[Dict[str, Any]]:
         """

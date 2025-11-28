@@ -11,6 +11,7 @@ This service provides:
 Embedding Generation:
 The service delegates embedding generation and storage to the database service.
 The database service handles backend-specific storage (e.g., separate tables for MariaDB).
+Services SHOULD NOT care about which database backend is being used.
 """
 from datetime import datetime
 from typing import List, Optional, Dict, Any
@@ -34,32 +35,13 @@ class QuizHistoryService:
         config: Configuration object
         index_name: Name of the database index
         db: DatabaseService instance for data operations
-        embedding_service: EmbeddingService for generating vector embeddings
     """
 
     def __init__(self):
         self.config = Config()
         self.index_name = self.config.ELASTICSEARCH_INDEX
         self.db = get_database_service()
-        self.embedding_service = None
         self._create_index()
-
-    def _get_embedding_service(self):
-        """
-        Lazy-load the embedding service to avoid circular imports
-        and allow graceful degradation when service is unavailable.
-
-        Returns:
-            EmbeddingService instance or None if unavailable
-        """
-        if self.embedding_service is None:
-            try:
-                from gradeschoolmathsolver.services.embedding import EmbeddingService
-                self.embedding_service = EmbeddingService()
-            except Exception as e:
-                print(f"Warning: Could not initialize embedding service: {e}")
-                return None
-        return self.embedding_service
 
     def _create_index(self):
         """
@@ -96,8 +78,8 @@ class QuizHistoryService:
             doc: Dict[str, Any] = {
                 "username": history.username,
                 "question": history.question,
-                "equation": history.user_equation,  # Store as equation
-                "user_equation": history.user_equation,  # Keep for backward compatibility
+                "equation": history.user_equation,
+                "user_equation": history.user_equation,
                 "user_answer": history.user_answer,
                 "correct_answer": history.correct_answer,
                 "is_correct": history.is_correct,
@@ -107,38 +89,24 @@ class QuizHistoryService:
             }
 
             # Prepare source texts for embedding generation
+            # The database service will generate embeddings from these
             source_texts = {
                 'question': history.question,
                 'equation': history.user_equation,
             }
 
-            # Get embedding service
-            embedding_service = self._get_embedding_service()
-            if embedding_service is None:
-                raise RuntimeError(
-                    "Embedding service is unavailable. Cannot add quiz history without authentic embeddings. "
-                    "Please ensure the embedding service is running and accessible."
-                )
-
-            # Create embedding generator function
-            def generate_embedding(text: str) -> Optional[List[float]]:
-                try:
-                    embedding = embedding_service.generate_embedding(text)
-                    return list(embedding) if embedding is not None else None
-                except Exception as e:
-                    raise RuntimeError(f"Embedding generation failed: {e}") from e
-
             # Use database service to insert with embeddings
-            doc_id = self.db.insert_record_with_embeddings(
+            # Database service handles all embedding generation internally
+            doc_id = self.db.insert_record(
                 self.index_name,
                 doc,
-                source_texts,
-                generate_embedding
+                record_id=None,  # Auto-generate UUID
+                source_texts=source_texts
             )
 
             return doc_id is not None
         except Exception as e:
-            print(f"Error adding history: {e}")
+            print(f"ERROR: Failed to add history: {e}")
             return False
 
     def search_relevant_history(self, username: str, question: str,
