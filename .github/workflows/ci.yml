@@ -39,7 +39,7 @@ jobs:
     - name: Type check with mypy (STRICT - FAIL ON ANY ISSUE)
       run: |
         # STRICT type checking - fail on any type error
-        mypy src/gradeschoolmathsolver/ tests/ --ignore-missing-imports --no-strict-optional --check-untyped-defs
+        mypy
 
     - name: Run tests with pytest (STRICT - FAIL ON ANY ISSUE)
       run: |

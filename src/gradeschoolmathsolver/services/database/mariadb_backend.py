@@ -366,7 +366,7 @@ class MariaDBDatabaseService(DatabaseService):
             try:
                 cursor = self.connection.cursor()
                 cols = "`record_id`, `embedding`"
-                replace_query = f"REPLACE INTO `{embedding_table}` ({cols}) VALUES (%s, %s)"
+                replace_query = f"REPLACE INTO `{embedding_table}` ({cols}) VALUES (%s, VEC_FromText(%s))"
                 # Convert embedding list to MariaDB VECTOR format
                 embedding_str = str(embedding)
                 cursor.execute(replace_query, (record_id, embedding_str))
