@@ -2,47 +2,160 @@
 Web UI Service
 Flask-based web interface for the GradeSchoolMathSolver system
 """
-from typing import Any, Dict, List, Optional, Tuple, Union
-from flask import Flask, render_template, request, jsonify, Response
+from typing import Any, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
+from flask import Flask, render_template, request, jsonify, Response, redirect
 from flask_cors import CORS
+from werkzeug.wrappers import Response as WerkzeugResponse
 from gradeschoolmathsolver.config import Config
 from gradeschoolmathsolver.models import (
     ExamRequest, AgentConfig, ImmersiveExamConfig,
     ImmersiveExamAnswer, ParticipantType, RevealStrategy
 )
-from gradeschoolmathsolver.services.account import AccountService
-from gradeschoolmathsolver.services.exam import ExamService
-from gradeschoolmathsolver.services.agent_management import AgentManagementService
-from gradeschoolmathsolver.services.immersive_exam import ImmersiveExamService
-from gradeschoolmathsolver.services.mistake_review import MistakeReviewService
+from gradeschoolmathsolver.services.database import (
+    get_database_service, get_connection_status, is_database_ready
+)
+
+if TYPE_CHECKING:
+    from gradeschoolmathsolver.services.account import AccountService
+    from gradeschoolmathsolver.services.exam import ExamService
+    from gradeschoolmathsolver.services.agent_management import AgentManagementService
+    from gradeschoolmathsolver.services.immersive_exam import ImmersiveExamService
+    from gradeschoolmathsolver.services.mistake_review import MistakeReviewService
 
 
 app = Flask(__name__, template_folder='templates')
 CORS(app)
 
 config = Config()
-account_service = AccountService()
-exam_service = ExamService()
-agent_management = AgentManagementService()
-immersive_exam_service = ImmersiveExamService()
-mistake_review_service = MistakeReviewService()
 
-# Create default agents on startup
-agent_management.create_default_agents()
+# Services are lazily initialized after database is ready
+_account_service: Optional['AccountService'] = None
+_exam_service: Optional['ExamService'] = None
+_agent_management: Optional['AgentManagementService'] = None
+_immersive_exam_service: Optional['ImmersiveExamService'] = None
+_mistake_review_service: Optional['MistakeReviewService'] = None
+
+
+def _init_services() -> bool:
+    """Initialize all services after database is ready."""
+    global _account_service, _exam_service, _agent_management
+    global _immersive_exam_service, _mistake_review_service
+
+    if not is_database_ready():
+        return False
+
+    if _account_service is None:
+        from gradeschoolmathsolver.services.account import AccountService
+        from gradeschoolmathsolver.services.exam import ExamService
+        from gradeschoolmathsolver.services.agent_management import AgentManagementService
+        from gradeschoolmathsolver.services.immersive_exam import ImmersiveExamService
+        from gradeschoolmathsolver.services.mistake_review import MistakeReviewService
+
+        _account_service = AccountService()
+        _exam_service = ExamService()
+        _agent_management = AgentManagementService()
+        _immersive_exam_service = ImmersiveExamService()
+        _mistake_review_service = MistakeReviewService()
+
+        # Create default agents on startup
+        _agent_management.create_default_agents()
+
+    return True
+
+
+def get_account_service() -> 'AccountService':
+    """Get the account service, initializing if needed."""
+    _init_services()
+    if _account_service is None:
+        raise RuntimeError("Account service not initialized")
+    return _account_service
+
+
+def get_exam_service() -> 'ExamService':
+    """Get the exam service, initializing if needed."""
+    _init_services()
+    if _exam_service is None:
+        raise RuntimeError("Exam service not initialized")
+    return _exam_service
+
+
+def get_agent_management() -> 'AgentManagementService':
+    """Get the agent management service, initializing if needed."""
+    _init_services()
+    if _agent_management is None:
+        raise RuntimeError("Agent management service not initialized")
+    return _agent_management
+
+
+def get_immersive_exam_service() -> 'ImmersiveExamService':
+    """Get the immersive exam service, initializing if needed."""
+    _init_services()
+    if _immersive_exam_service is None:
+        raise RuntimeError("Immersive exam service not initialized")
+    return _immersive_exam_service
+
+
+def get_mistake_review_service() -> 'MistakeReviewService':
+    """Get the mistake review service, initializing if needed."""
+    _init_services()
+    if _mistake_review_service is None:
+        raise RuntimeError("Mistake review service not initialized")
+    return _mistake_review_service
+
 
 # Type alias for Flask response types
-FlaskResponse = Union[Response, str, Tuple[Response, int], Tuple[str, int]]
+FlaskResponse = Union[Response, WerkzeugResponse, str, Tuple[Response, int], Tuple[str, int]]
+
+
+# Start database connection in background on module load
+get_database_service(blocking=False)
+
+
+# Database status routes
+@app.route('/db-status')
+def db_status_page() -> FlaskResponse:
+    """Database connection status page"""
+    if is_database_ready():
+        # Database is ready, redirect to home
+        return redirect('/')
+    return render_template('db_status.html')
+
+
+@app.route('/api/db/status')
+def api_db_status() -> Response:
+    """API: Get database connection status"""
+    status = get_connection_status()
+    db_ready = is_database_ready()
+    return jsonify({
+        'status': status,
+        'ready': db_ready
+    })
+
+
+def require_db(f):  # type: ignore
+    """Decorator that returns db_status page if database is not ready."""
+    from functools import wraps
+
+    @wraps(f)
+    def decorated_function(*args, **kwargs):  # type: ignore
+        if not is_database_ready():
+            return render_template('db_status.html')
+        return f(*args, **kwargs)
+    return decorated_function
 
 
 @app.route('/')
+@require_db
 def index() -> str:
     """Home page"""
     return render_template('index.html')
 
 
 @app.route('/users')
+@require_db
 def users() -> str:
     """List all users with their statistics"""
+    account_service = get_account_service()
     usernames = account_service.list_users()
     users_data = []
 
@@ -61,8 +174,10 @@ def users() -> str:
 
 
 @app.route('/user/<username>')
+@require_db
 def user_detail(username: str) -> FlaskResponse:
     """User detail page with history"""
+    account_service = get_account_service()
     stats = account_service.get_user_stats(username)
     if not stats:
         return "User not found", 404
@@ -76,6 +191,7 @@ def user_detail(username: str) -> FlaskResponse:
 
 
 @app.route('/exam')
+@require_db
 def exam_page() -> str:
     """Exam page"""
     return render_template('exam.html',
@@ -83,8 +199,10 @@ def exam_page() -> str:
 
 
 @app.route('/agents')
+@require_db
 def agents_page() -> str:
     """Agents management page"""
+    agent_management = get_agent_management()
     agent_names = agent_management.list_agents()
     agents = []
 
@@ -97,14 +215,17 @@ def agents_page() -> str:
 
 
 @app.route('/mistakes')
+@require_db
 def mistake_review_page() -> str:
     """Mistake review page"""
     return render_template('mistake_review.html')
 
 
 @app.route('/immersive')
+@require_db
 def immersive_exam_page() -> str:
     """Immersive exam creation page"""
+    agent_management = get_agent_management()
     agent_names = agent_management.list_agents()
     return render_template('immersive_exam_create.html',
                            difficulty_levels=config.DIFFICULTY_LEVELS,
@@ -112,12 +233,14 @@ def immersive_exam_page() -> str:
 
 
 @app.route('/immersive/<exam_id>')
+@require_db
 def immersive_exam_live(exam_id: str) -> str:
     """Live immersive exam page"""
     return render_template('immersive_exam_live.html', exam_id=exam_id)
 
 
 @app.route('/immersive/<exam_id>/results')
+@require_db
 def immersive_exam_results(exam_id: str) -> str:
     """Immersive exam results page"""
     return render_template('immersive_exam_results.html', exam_id=exam_id)
@@ -126,8 +249,12 @@ def immersive_exam_results(exam_id: str) -> str:
 # API Routes
 
 @app.route('/api/users', methods=['GET'])
-def api_list_users() -> Response:
+def api_list_users() -> FlaskResponse:
     """API: List all users"""
+    if not is_database_ready():
+        return jsonify({'error': 'Database not connected', 'status': 'connecting'}), 503
+
+    account_service = get_account_service()
     usernames = account_service.list_users()
     users_data = []
 
@@ -142,11 +269,16 @@ def api_list_users() -> Response:
 @app.route('/api/users', methods=['POST'])
 def api_create_user() -> FlaskResponse:
     """API: Create a new user"""
+    if not is_database_ready():
+        return jsonify({'error': 'Database not connected', 'status': 'connecting'}), 503
+
     data: Dict[str, Any] = request.json or {}
     username = data.get('username')
 
     if not username:
         return jsonify({'error': 'Username is required'}), 400
+
+    account_service = get_account_service()
 
     # Check database connection first
     if not account_service._is_connected():
@@ -164,6 +296,9 @@ def api_create_user() -> FlaskResponse:
 @app.route('/api/exam/human', methods=['POST'])
 def api_conduct_human_exam() -> FlaskResponse:
     """API: Conduct exam for human user"""
+    if not is_database_ready():
+        return jsonify({'error': 'Database not connected', 'status': 'connecting'}), 503
+
     data: Dict[str, Any] = request.json or {}
 
     try:
@@ -174,6 +309,7 @@ def api_conduct_human_exam() -> FlaskResponse:
         )
 
         # Generate questions first
+        exam_service = get_exam_service()
         questions = exam_service.create_exam(exam_request)
 
         # Return questions to frontend for user to answer
@@ -188,6 +324,9 @@ def api_conduct_human_exam() -> FlaskResponse:
 @app.route('/api/exam/human/submit', methods=['POST'])
 def api_submit_human_exam() -> FlaskResponse:
     """API: Submit human exam answers"""
+    if not is_database_ready():
+        return jsonify({'error': 'Database not connected', 'status': 'connecting'}), 503
+
     data: Dict[str, Any] = request.json or {}
 
     try:
@@ -220,6 +359,7 @@ def api_submit_human_exam() -> FlaskResponse:
         )
 
         # Process using the new process_human_exam method with pre-generated questions
+        exam_service = get_exam_service()
         results = exam_service.process_human_exam(exam_request, questions, answers)
 
         return jsonify(results)
@@ -233,6 +373,9 @@ def api_submit_human_exam() -> FlaskResponse:
 @app.route('/api/exam/agent', methods=['POST'])
 def api_conduct_agent_exam() -> FlaskResponse:
     """API: Conduct exam for RAG bot"""
+    if not is_database_ready():
+        return jsonify({'error': 'Database not connected', 'status': 'connecting'}), 503
+
     data: Dict[str, Any] = request.json or {}
 
     try:
@@ -243,6 +386,7 @@ def api_conduct_agent_exam() -> FlaskResponse:
             agent_name=data.get('agent_name')
         )
 
+        exam_service = get_exam_service()
         results = exam_service.conduct_agent_exam(exam_request)
         return jsonify(results)
 
@@ -251,8 +395,12 @@ def api_conduct_agent_exam() -> FlaskResponse:
 
 
 @app.route('/api/agents', methods=['GET'])
-def api_list_agents() -> Response:
+def api_list_agents() -> FlaskResponse:
     """API: List all agents"""
+    if not is_database_ready():
+        return jsonify({'error': 'Database not connected', 'status': 'connecting'}), 503
+
+    agent_management = get_agent_management()
     agent_names = agent_management.list_agents()
     agents = []
 
@@ -267,10 +415,14 @@ def api_list_agents() -> Response:
 @app.route('/api/agents', methods=['POST'])
 def api_create_agent() -> FlaskResponse:
     """API: Create a new agent"""
+    if not is_database_ready():
+        return jsonify({'error': 'Database not connected', 'status': 'connecting'}), 503
+
     data: Dict[str, Any] = request.json or {}
 
     try:
         agent_config = AgentConfig(**data)
+        agent_management = get_agent_management()
         success = agent_management.create_agent(agent_config)
 
         if success:
@@ -287,6 +439,9 @@ def api_create_agent() -> FlaskResponse:
 @app.route('/api/exam/immersive/create', methods=['POST'])
 def api_create_immersive_exam() -> FlaskResponse:
     """API: Create an immersive exam"""
+    if not is_database_ready():
+        return jsonify({'error': 'Database not connected', 'status': 'connecting'}), 503
+
     data: Dict[str, Any] = request.json or {}
 
     try:
@@ -295,13 +450,14 @@ def api_create_immersive_exam() -> FlaskResponse:
         reveal_strategy = data.get('reveal_strategy', 'none')
         time_per_question = data.get('time_per_question')
 
-        config = ImmersiveExamConfig(
+        exam_config = ImmersiveExamConfig(
             difficulty_distribution=difficulty_distribution,
             reveal_strategy=RevealStrategy(reveal_strategy),
             time_per_question=time_per_question
         )
 
-        exam = immersive_exam_service.create_immersive_exam(config)
+        immersive_exam_service = get_immersive_exam_service()
+        exam = immersive_exam_service.create_immersive_exam(exam_config)
 
         return jsonify({
             'exam_id': exam.exam_id,
@@ -317,6 +473,9 @@ def api_create_immersive_exam() -> FlaskResponse:
 @app.route('/api/exam/immersive/<exam_id>/register', methods=['POST'])
 def api_register_participant(exam_id: str) -> FlaskResponse:
     """API: Register participant for immersive exam"""
+    if not is_database_ready():
+        return jsonify({'error': 'Database not connected', 'status': 'connecting'}), 503
+
     data: Dict[str, Any] = request.json or {}
 
     try:
@@ -326,6 +485,7 @@ def api_register_participant(exam_id: str) -> FlaskResponse:
         if not participant_id:
             return jsonify({'error': 'participant_id is required'}), 400
 
+        immersive_exam_service = get_immersive_exam_service()
         success = immersive_exam_service.register_participant(
             exam_id=exam_id,
             participant_id=participant_id,
@@ -347,7 +507,11 @@ def api_register_participant(exam_id: str) -> FlaskResponse:
 @app.route('/api/exam/immersive/<exam_id>/start', methods=['POST'])
 def api_start_immersive_exam(exam_id: str) -> FlaskResponse:
     """API: Start immersive exam"""
+    if not is_database_ready():
+        return jsonify({'error': 'Database not connected', 'status': 'connecting'}), 503
+
     try:
+        immersive_exam_service = get_immersive_exam_service()
         success = immersive_exam_service.start_exam(exam_id)
 
         if success:
@@ -362,12 +526,16 @@ def api_start_immersive_exam(exam_id: str) -> FlaskResponse:
 @app.route('/api/exam/immersive/<exam_id>/status', methods=['GET'])
 def api_get_immersive_exam_status(exam_id: str) -> FlaskResponse:
     """API: Get current status of immersive exam"""
+    if not is_database_ready():
+        return jsonify({'error': 'Database not connected', 'status': 'connecting'}), 503
+
     participant_id = request.args.get('participant_id')
 
     if not participant_id:
         return jsonify({'error': 'participant_id parameter is required'}), 400
 
     try:
+        immersive_exam_service = get_immersive_exam_service()
         status = immersive_exam_service.get_exam_status(exam_id, participant_id)
 
         if status:
@@ -382,6 +550,9 @@ def api_get_immersive_exam_status(exam_id: str) -> FlaskResponse:
 @app.route('/api/exam/immersive/<exam_id>/answer', methods=['POST'])
 def api_submit_immersive_answer(exam_id: str) -> FlaskResponse:
     """API: Submit answer for current question"""
+    if not is_database_ready():
+        return jsonify({'error': 'Database not connected', 'status': 'connecting'}), 503
+
     data: Dict[str, Any] = request.json or {}
 
     try:
@@ -392,6 +563,7 @@ def api_submit_immersive_answer(exam_id: str) -> FlaskResponse:
             answer=int(data.get('answer', 0))
         )
 
+        immersive_exam_service = get_immersive_exam_service()
         success = immersive_exam_service.submit_answer(answer_submission)
 
         if success:
@@ -412,7 +584,11 @@ def api_submit_immersive_answer(exam_id: str) -> FlaskResponse:
 @app.route('/api/exam/immersive/<exam_id>/advance', methods=['POST'])
 def api_advance_immersive_exam(exam_id: str) -> FlaskResponse:
     """API: Advance to next question (admin/server control)"""
+    if not is_database_ready():
+        return jsonify({'error': 'Database not connected', 'status': 'connecting'}), 503
+
     try:
+        immersive_exam_service = get_immersive_exam_service()
         success = immersive_exam_service.advance_to_next_question(exam_id)
 
         if success:
@@ -432,7 +608,11 @@ def api_advance_immersive_exam(exam_id: str) -> FlaskResponse:
 @app.route('/api/exam/immersive/<exam_id>/results', methods=['GET'])
 def api_get_immersive_exam_results(exam_id: str) -> FlaskResponse:
     """API: Get final results of immersive exam"""
+    if not is_database_ready():
+        return jsonify({'error': 'Database not connected', 'status': 'connecting'}), 503
+
     try:
+        immersive_exam_service = get_immersive_exam_service()
         results = immersive_exam_service.get_exam_results(exam_id)
 
         if results:
@@ -447,7 +627,11 @@ def api_get_immersive_exam_results(exam_id: str) -> FlaskResponse:
 @app.route('/api/exam/immersive/list', methods=['GET'])
 def api_list_immersive_exams() -> FlaskResponse:
     """API: List all active immersive exams"""
+    if not is_database_ready():
+        return jsonify({'error': 'Database not connected', 'status': 'connecting'}), 503
+
     try:
+        immersive_exam_service = get_immersive_exam_service()
         exam_ids = immersive_exam_service.list_active_exams()
         exams = []
 
@@ -473,7 +657,11 @@ def api_list_immersive_exams() -> FlaskResponse:
 @app.route('/api/mistakes/next/<username>', methods=['GET'])
 def api_get_next_mistake(username: str) -> FlaskResponse:
     """API: Get the next mistake to review for a user"""
+    if not is_database_ready():
+        return jsonify({'error': 'Database not connected', 'status': 'connecting'}), 503
+
     try:
+        mistake_review_service = get_mistake_review_service()
         mistake = mistake_review_service.get_next_mistake(username)
 
         if mistake:
@@ -488,7 +676,11 @@ def api_get_next_mistake(username: str) -> FlaskResponse:
 @app.route('/api/mistakes/count/<username>', methods=['GET'])
 def api_get_mistake_count(username: str) -> FlaskResponse:
     """API: Get count of unreviewed mistakes for a user"""
+    if not is_database_ready():
+        return jsonify({'error': 'Database not connected', 'status': 'connecting'}), 503
+
     try:
+        mistake_review_service = get_mistake_review_service()
         count = mistake_review_service.get_unreviewed_count(username)
         return jsonify({'username': username, 'unreviewed_count': count})
 
@@ -499,6 +691,9 @@ def api_get_mistake_count(username: str) -> FlaskResponse:
 @app.route('/api/mistakes/review', methods=['POST'])
 def api_mark_mistake_reviewed() -> FlaskResponse:
     """API: Mark a mistake as reviewed"""
+    if not is_database_ready():
+        return jsonify({'error': 'Database not connected', 'status': 'connecting'}), 503
+
     data: Dict[str, Any] = request.json or {}
 
     try:
@@ -508,6 +703,7 @@ def api_mark_mistake_reviewed() -> FlaskResponse:
         if not username or mistake_id is None:
             return jsonify({'error': 'username and mistake_id are required'}), 400
 
+        mistake_review_service = get_mistake_review_service()
         success = mistake_review_service.mark_as_reviewed(username, mistake_id)
 
         if success:
@@ -522,7 +718,11 @@ def api_mark_mistake_reviewed() -> FlaskResponse:
 @app.route('/api/mistakes/all/<username>', methods=['GET'])
 def api_get_all_mistakes(username: str) -> FlaskResponse:
     """API: Get all unreviewed mistakes for a user"""
+    if not is_database_ready():
+        return jsonify({'error': 'Database not connected', 'status': 'connecting'}), 503
+
     try:
+        mistake_review_service = get_mistake_review_service()
         limit = request.args.get('limit', 100, type=int)
         mistakes = mistake_review_service.get_all_unreviewed_mistakes(username, limit=limit)
 

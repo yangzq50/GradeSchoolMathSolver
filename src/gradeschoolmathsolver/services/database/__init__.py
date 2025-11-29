@@ -3,6 +3,18 @@ Database Service Module
 
 Provides centralized database access with abstract interface for easy backend switching.
 """
-from .service import DatabaseService, get_database_service
+from .service import (
+    DatabaseService,
+    get_database_service,
+    get_connection_status,
+    is_database_ready,
+    set_database_service,
+)
 
-__all__ = ['DatabaseService', 'get_database_service']
+__all__ = [
+    'DatabaseService',
+    'get_database_service',
+    'get_connection_status',
+    'is_database_ready',
+    'set_database_service',
+]

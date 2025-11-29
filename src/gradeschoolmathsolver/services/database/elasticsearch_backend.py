@@ -18,13 +18,19 @@ class ElasticsearchDatabaseService(DatabaseService):
     Maps generic database operations to Elasticsearch-specific operations (indices, documents, etc.).
     """
 
-    def __init__(self, max_retries: Optional[int] = None, retry_delay: Optional[float] = None) -> None:
+    def __init__(
+        self,
+        max_retries: Optional[int] = None,
+        retry_delay: Optional[float] = None,
+        skip_connect: bool = False
+    ) -> None:
         """
         Initialize Elasticsearch database service with retry logic
 
         Args:
             max_retries: Maximum number of connection attempts (default: from Config.DB_MAX_RETRIES)
             retry_delay: Initial delay between retries in seconds (default: from Config.DB_RETRY_DELAY)
+            skip_connect: If True, skip the initial connection attempt (for non-blocking init)
         """
         self.config = Config()
         self.es: Optional[Elasticsearch] = None
@@ -37,7 +43,9 @@ class ElasticsearchDatabaseService(DatabaseService):
 
         self.max_retries = max_retries
         self.retry_delay = retry_delay
-        self.connect()
+
+        if not skip_connect:
+            self.connect()
 
     def connect(self) -> bool:
         """

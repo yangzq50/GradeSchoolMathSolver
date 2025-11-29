@@ -24,6 +24,7 @@ The DATABASE_BACKEND configuration should ONLY be accessed in database service.
 """
 from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
+import threading
 
 
 # Global embedding service instance (lazy-loaded)
@@ -317,14 +318,20 @@ class DatabaseService(ABC):
 
 # Global database service instance
 _db_service: Optional[DatabaseService] = None
+_connection_thread: Optional[threading.Thread] = None
+_connection_status: str = "not_started"  # "not_started", "connecting", "connected", "failed"
 
 
-def get_database_service() -> DatabaseService:
+def get_database_service(blocking: bool = True) -> DatabaseService:
     """
     Get the global database service instance
 
     Auto-initializes based on DATABASE_BACKEND configuration.
     Supported backends: 'elasticsearch', 'mariadb' (default)
+
+    Args:
+        blocking: If True (default), blocks until connection succeeds or all retries exhausted.
+                  If False, starts connection in background thread and returns immediately.
 
     Returns:
         DatabaseService: The configured database service
@@ -332,20 +339,81 @@ def get_database_service() -> DatabaseService:
     Raises:
         RuntimeError: If database service hasn't been initialized
     """
-    global _db_service
+    global _db_service, _connection_thread, _connection_status
+
     if _db_service is None:
         from gradeschoolmathsolver.config import Config
         config = Config()
         backend = config.DATABASE_BACKEND.lower()
 
-        if backend == 'mariadb':
-            from .mariadb_backend import MariaDBDatabaseService
-            _db_service = MariaDBDatabaseService()
-        else:  # Default to elasticsearch
-            from .elasticsearch_backend import ElasticsearchDatabaseService
-            _db_service = ElasticsearchDatabaseService()
+        if blocking:
+            # Original blocking behavior
+            _connection_status = "connecting"
+            if backend == 'mariadb':
+                from .mariadb_backend import MariaDBDatabaseService
+                _db_service = MariaDBDatabaseService()
+            else:  # Default to elasticsearch
+                from .elasticsearch_backend import ElasticsearchDatabaseService
+                _db_service = ElasticsearchDatabaseService()
+            _connection_status = "connected" if _db_service.is_connected() else "failed"
+        else:
+            # Non-blocking: start connection in background thread
+            if _connection_thread is None or not _connection_thread.is_alive():
+                _connection_status = "connecting"
+
+                def connect_in_background() -> None:
+                    global _db_service, _connection_status
+                    try:
+                        if backend == 'mariadb':
+                            from .mariadb_backend import MariaDBDatabaseService
+                            _db_service = MariaDBDatabaseService()
+                        else:  # Default to elasticsearch
+                            from .elasticsearch_backend import ElasticsearchDatabaseService
+                            _db_service = ElasticsearchDatabaseService()
+                        _connection_status = "connected" if _db_service.is_connected() else "failed"
+                    except Exception as e:
+                        print(f"Background connection failed: {e}")
+                        _connection_status = "failed"
+
+                _connection_thread = threading.Thread(target=connect_in_background, daemon=True)
+                _connection_thread.start()
+
+            # Create a placeholder service without connecting (proper initialization)
+            if backend == 'mariadb':
+                from .mariadb_backend import MariaDBDatabaseService
+                _db_service = MariaDBDatabaseService(skip_connect=True)
+            else:
+                from .elasticsearch_backend import ElasticsearchDatabaseService
+                _db_service = ElasticsearchDatabaseService(skip_connect=True)
 
     return _db_service
+
+
+def get_connection_status() -> str:
+    """
+    Get the current database connection status.
+
+    Returns:
+        str: One of "not_started", "connecting", "connected", "failed"
+    """
+    global _connection_status
+
+    # Update status based on actual connection state if service exists
+    if _db_service is not None and _connection_status == "connecting":
+        if _db_service.is_connected():
+            _connection_status = "connected"
+
+    return _connection_status
+
+
+def is_database_ready() -> bool:
+    """
+    Check if the database is connected and ready to use.
+
+    Returns:
+        bool: True if connected and ready, False otherwise
+    """
+    return _db_service is not None and _db_service.is_connected()
 
 
 def set_database_service(service: DatabaseService) -> None:
@@ -357,5 +425,9 @@ def set_database_service(service: DatabaseService) -> None:
     Args:
         service: Database service instance to use
     """
-    global _db_service
+    global _db_service, _connection_status
     _db_service = service
+    if service is None:
+        _connection_status = "not_started"
+    else:
+        _connection_status = "connected" if service.is_connected() else "failed"
