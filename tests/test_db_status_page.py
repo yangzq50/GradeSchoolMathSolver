@@ -3,6 +3,7 @@ Tests for database connection status page feature
 """
 import sys
 import os
+import threading
 from unittest.mock import Mock, patch
 
 # Add parent directory to path
@@ -132,7 +133,8 @@ def test_non_blocking_get_database_service() -> None:
             assert result is not None
             assert service._connection_status == "connecting"
             assert service._connection_thread is not None
-            assert service._connection_thread.is_alive() or not service._connection_thread.is_alive()
+            # The thread should have been started
+            assert isinstance(service._connection_thread, threading.Thread)
 
             print("✅ Non-blocking get_database_service sets connecting status")
 

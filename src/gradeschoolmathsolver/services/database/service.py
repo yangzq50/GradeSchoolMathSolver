@@ -378,22 +378,13 @@ def get_database_service(blocking: bool = True) -> DatabaseService:
                 _connection_thread = threading.Thread(target=connect_in_background, daemon=True)
                 _connection_thread.start()
 
-            # Create a placeholder service that returns not connected
+            # Create a placeholder service without connecting (proper initialization)
             if backend == 'mariadb':
                 from .mariadb_backend import MariaDBDatabaseService
-                # Create an instance without connecting
-                _db_service = object.__new__(MariaDBDatabaseService)
-                _db_service.config = config
-                _db_service.connection = None
-                _db_service.max_retries = 0
-                _db_service.retry_delay = 0.0
+                _db_service = MariaDBDatabaseService(skip_connect=True)
             else:
                 from .elasticsearch_backend import ElasticsearchDatabaseService
-                _db_service = object.__new__(ElasticsearchDatabaseService)
-                _db_service.config = config
-                _db_service.es = None
-                _db_service.max_retries = 0
-                _db_service.retry_delay = 0.0
+                _db_service = ElasticsearchDatabaseService(skip_connect=True)
 
     return _db_service
 
