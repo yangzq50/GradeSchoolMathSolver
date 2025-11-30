@@ -139,7 +139,7 @@ def test_config() -> None:
     from gradeschoolmathsolver.config import Config
 
     config = Config()
-    assert config.AI_MODEL_NAME
+    assert config.GENERATION_MODEL_NAME
     assert config.DIFFICULTY_LEVELS == ['easy', 'medium', 'hard']
     assert len(config.QUESTION_CATEGORIES) > 0
 
