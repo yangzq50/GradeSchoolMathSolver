@@ -51,11 +51,10 @@ services:
       # Note: These models should be downloaded via Docker Desktop's Model Runner:
       # 1. LLM Model: ai/llama3.2:1B-Q4_0 (for question generation and reasoning)
       # 2. Embedding Model: ai/embeddinggemma:300M-Q8_0 (for RAG and semantic search)
-      - AI_MODEL_URL=http://host.docker.internal:12434
-      - AI_MODEL_NAME=ai/llama3.2:1B-Q4_0
-      - LLM_ENGINE=llama.cpp
+      - GENERATION_SERVICE_URL=http://host.docker.internal:12434/engines/llama.cpp/v1/chat/completions
+      - GENERATION_MODEL_NAME=ai/llama3.2:1B-Q4_0
       # Embedding Service Configuration
-      - EMBEDDING_MODEL_URL=http://host.docker.internal:12434
+      - EMBEDDING_SERVICE_URL=http://host.docker.internal:12434/engines/llama.cpp/v1/embeddings
       - EMBEDDING_MODEL_NAME=ai/embeddinggemma:300M-Q8_0
       # Database Configuration
       - DATABASE_BACKEND=${DATABASE_BACKEND:-mariadb}

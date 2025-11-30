@@ -191,9 +191,8 @@ This will install the latest stable release with all dependencies.
    ```bash
    cp .env.example .env
    # Edit .env with your configuration:
-   # - AI_MODEL_URL: Docker Desktop models endpoint (e.g., http://localhost:12434)
-   # - AI_MODEL_NAME: Model name (e.g., ai/llama3.2:1B-Q4_0)
-   # - LLM_ENGINE: Engine type (e.g., llama.cpp)
+   # - GENERATION_SERVICE_URL: Full URL for text generation endpoint
+   # - GENERATION_MODEL_NAME: Model name (e.g., ai/llama3.2:1B-Q4_0)
    # - DATABASE_BACKEND: mariadb (default) or elasticsearch
    ```
 
@@ -577,12 +576,6 @@ Key settings:
 - `EMBEDDING_SERVICE_URL`: Full URL for embedding endpoint (e.g., http://localhost:12434/engines/llama.cpp/v1/embeddings)
 - `EMBEDDING_MODEL_NAME`: Name of the embedding model (e.g., ai/embeddinggemma:300M-Q8_0)
 
-**Legacy Model Configuration (Backward Compatible):**
-- `AI_MODEL_URL`: Base URL of the AI model service (e.g., http://localhost:12434)
-- `AI_MODEL_NAME`: Name of the model to use (e.g., ai/llama3.2:1B-Q4_0)
-- `LLM_ENGINE`: LLM engine to use (e.g., llama.cpp)
-- `EMBEDDING_MODEL_URL`: Base URL of the embedding service (e.g., http://localhost:12434)
-
 **Database Configuration:**
 - `DATABASE_BACKEND`: Database backend (mariadb or elasticsearch, default: mariadb)
 - `MARIADB_HOST`: MariaDB hostname (default: localhost)
@@ -801,9 +794,8 @@ If you encounter import errors:
 
 3. **Verify your environment variables are correct:**
    ```bash
-   AI_MODEL_URL=http://localhost:12434
-   AI_MODEL_NAME=ai/llama3.2:1B-Q4_0
-   LLM_ENGINE=llama.cpp
+   GENERATION_SERVICE_URL=http://localhost:12434/engines/llama.cpp/v1/chat/completions
+   GENERATION_MODEL_NAME=ai/llama3.2:1B-Q4_0
    ```
 
 4. **Check Docker Desktop status:**

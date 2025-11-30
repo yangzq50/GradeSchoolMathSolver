@@ -49,8 +49,8 @@ ollama serve
 ollama pull llama3.2
 
 # Update .env
-AI_MODEL_URL=http://localhost:11434
-LLM_ENGINE=ollama
+GENERATION_SERVICE_URL=http://localhost:11434/v1/chat/completions
+GENERATION_MODEL_NAME=llama3.2
 
 # Start application
 docker-compose up -d mariadb
